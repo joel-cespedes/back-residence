@@ -11,7 +11,8 @@ from app.models import (
     Measurement, Resident, Device, UserResidence
 )
 from app.schemas import (
-    MeasurementCreate, MeasurementOut, MeasurementUpdate
+    MeasurementCreate, MeasurementOut, MeasurementUpdate,
+    PaginationParams, PaginatedResponse, FilterParams
 )
 from sqlalchemy import text
 
@@ -110,6 +111,69 @@ def _can_edit_delete(current: dict, recorder_id: str, role_manager_label: str = 
     # professional: solo lo suyo
     return current["id"] == recorder_id
 
+async def get_measurement_or_404(measurement_id: str, db: AsyncSession) -> Measurement:
+    """Get measurement by ID or raise 404"""
+    result = await db.execute(
+        select(Measurement).where(Measurement.id == measurement_id, Measurement.deleted_at.is_(None))
+    )
+    measurement = result.scalar_one_or_none()
+    if not measurement:
+        raise HTTPException(status_code=404, detail="Measurement not found")
+    return measurement
+
+async def paginate_query_measurements(
+    query,
+    db: AsyncSession,
+    pagination: PaginationParams,
+    filter_params: FilterParams = None
+) -> PaginatedResponse:
+    """Apply pagination and filters to a measurements query"""
+
+    if filter_params:
+        if filter_params.date_from:
+            query = query.where(Measurement.taken_at >= filter_params.date_from)
+        if filter_params.date_to:
+            query = query.where(Measurement.taken_at <= filter_params.date_to)
+        if filter_params.type:
+            query = query.where(Measurement.type == filter_params.type)
+        if filter_params.search:
+            search_term = f"%{filter_params.search}%"
+            query = query.where(or_(
+                Measurement.type.ilike(search_term),
+                Measurement.source.ilike(search_term)
+            ))
+
+    count_query = select(func.count()).select_from(query.subquery())
+    total = await db.scalar(count_query)
+
+    if pagination.sort_by:
+        sort_field = getattr(Measurement, pagination.sort_by, Measurement.taken_at)
+        if pagination.sort_order == 'desc':
+            sort_field = sort_field.desc()
+        query = query.order_by(sort_field)
+    else:
+        query = query.order_by(Measurement.taken_at.desc())
+
+    offset = (pagination.page - 1) * pagination.size
+    query = query.offset(offset).limit(pagination.size)
+
+    result = await db.execute(query)
+    items = [dict(row._mapping) for row in result.scalars().all()]
+
+    pages = (total + pagination.size - 1) // pagination.size
+    has_next = pagination.page < pages
+    has_prev = pagination.page > 1
+
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        page=pagination.page,
+        size=pagination.size,
+        pages=pages,
+        has_next=has_next,
+        has_prev=has_prev
+    )
+
 # -------------------- endpoints --------------------
 
 @router.post("", response_model=MeasurementOut)
@@ -174,8 +238,44 @@ async def create_measurement(
     await db.refresh(m)
     return m
 
-@router.get("", response_model=list[MeasurementOut])
+@router.get("/", response_model=PaginatedResponse)
 async def list_measurements(
+    pagination: PaginationParams = Depends(),
+    filters: FilterParams = Depends(),
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    resident_id: str | None = Query(None),
+):
+    """
+    List measurements with pagination and filters
+    """
+    rid = await apply_residence_context_or_infer(db, current, residence_id, resident_id=resident_id)
+
+    query = select(Measurement).where(Measurement.residence_id == rid, Measurement.deleted_at.is_(None))
+
+    if resident_id:
+        query = query.where(Measurement.resident_id == resident_id)
+
+    # Apply filters from FilterParams
+    if filters:
+        if filters.date_from:
+            query = query.where(Measurement.taken_at >= filters.date_from)
+        if filters.date_to:
+            query = query.where(Measurement.taken_at <= filters.date_to)
+        if filters.type:
+            query = query.where(Measurement.type == filters.type)
+        if filters.search:
+            search_term = f"%{filters.search}%"
+            query = query.where(or_(
+                Measurement.type.ilike(search_term),
+                Measurement.source.ilike(search_term)
+            ))
+
+    return await paginate_query_measurements(query, db, pagination, filters)
+
+@router.get("/simple", response_model=list[MeasurementOut])
+async def list_measurements_simple(
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
     residence_id: str | None = Header(None, alias="X-Residence-Id"),
@@ -186,8 +286,7 @@ async def list_measurements(
     limit: int = Query(100, ge=1, le=1000),
 ):
     """
-    Lista mediciones en la residencia del contexto (o inferida por resident_id / device_id).
-    Filtros opcionales: resident_id, type, rango de fechas.
+    Legacy endpoint: List measurements without pagination
     """
     rid = await apply_residence_context_or_infer(db, current, residence_id, resident_id=resident_id)
 
@@ -213,18 +312,15 @@ async def get_measurement(
     current = Depends(get_current_user),
     residence_id: str | None = Header(None, alias="X-Residence-Id"),
 ):
-    # Traer la medición
-    q = await db.execute(select(Measurement).where(Measurement.id == measurement_id, Measurement.deleted_at.is_(None)))
-    m = q.scalar_one_or_none()
-    if not m:
-        raise HTTPException(status_code=404, detail="Measurement not found")
+    """Get a specific measurement"""
+    measurement = await get_measurement_or_404(measurement_id, db)
 
     # Fijar/validar residencia respecto a la medición
-    await apply_residence_context_or_infer(db, current, residence_id, resident_id=m.resident_id)
+    await apply_residence_context_or_infer(db, current, residence_id, resident_id=measurement.resident_id)
 
-    return m
+    return measurement
 
-@router.patch("/{measurement_id}", response_model=MeasurementOut)
+@router.put("/{measurement_id}", response_model=MeasurementOut)
 async def update_measurement(
     measurement_id: str,
     payload: MeasurementUpdate,
@@ -232,20 +328,18 @@ async def update_measurement(
     current = Depends(get_current_user),
     residence_id: str | None = Header(None, alias="X-Residence-Id"),
 ):
-    q = await db.execute(select(Measurement).where(Measurement.id == measurement_id, Measurement.deleted_at.is_(None)))
-    m = q.scalar_one_or_none()
-    if not m:
-        raise HTTPException(status_code=404, detail="Measurement not found")
+    """Update a measurement"""
+    measurement = await get_measurement_or_404(measurement_id, db)
 
     # Contexto/validación de residencia
-    rid = await apply_residence_context_or_infer(db, current, residence_id, resident_id=m.resident_id)
+    rid = await apply_residence_context_or_infer(db, current, residence_id, resident_id=measurement.resident_id)
 
     # Permisos: superadmin/manager cualquiera; professional solo si es suyo
-    if not _can_edit_delete(current, m.recorded_by):
+    if not _can_edit_delete(current, measurement.recorded_by):
         raise HTTPException(status_code=403, detail="You cannot edit this measurement")
 
     # Validación de tipo si lo cambia (normalmente no se cambia el tipo)
-    if payload.type is not None and payload.type != m.type:
+    if payload.type is not None and payload.type != measurement.type:
         _check_measurement_fields_by_type(payload)
 
     # Validar device si lo cambian
@@ -260,28 +354,24 @@ async def update_measurement(
         if not dev_ok:
             raise HTTPException(status_code=400, detail="Device does not belong to selected residence")
 
-    changes = {
-        "source": payload.source if payload.source is not None else m.source,
-        "device_id": payload.device_id if payload.device_id is not None else m.device_id,
-        "type": payload.type if payload.type is not None else m.type,
-        "systolic": payload.systolic if payload.systolic is not None else m.systolic,
-        "diastolic": payload.diastolic if payload.diastolic is not None else m.diastolic,
-        "pulse_bpm": payload.pulse_bpm if payload.pulse_bpm is not None else m.pulse_bpm,
-        "spo2": payload.spo2 if payload.spo2 is not None else m.spo2,
-        "weight_kg": payload.weight_kg if payload.weight_kg is not None else m.weight_kg,
-        "temperature_c": payload.temperature_c if payload.temperature_c is not None else m.temperature_c,
-        "taken_at": payload.taken_at if payload.taken_at is not None else m.taken_at,
-        "updated_at": func.now(),
-    }
+    update_data = payload.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(measurement, field, value)
 
-    await db.execute(
-        update(Measurement).where(Measurement.id == measurement_id).values(**changes)
-    )
     await db.commit()
+    await db.refresh(measurement)
+    return measurement
 
-    # devolver el registro actualizado
-    q2 = await db.execute(select(Measurement).where(Measurement.id == measurement_id))
-    return q2.scalar_one()
+@router.patch("/{measurement_id}", response_model=MeasurementOut)
+async def patch_measurement(
+    measurement_id: str,
+    payload: MeasurementUpdate,
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+):
+    """Patch a measurement (legacy endpoint)"""
+    return await update_measurement(measurement_id, payload, db, current, residence_id)
 
 @router.delete("/{measurement_id}", status_code=204)
 async def delete_measurement(
@@ -290,18 +380,41 @@ async def delete_measurement(
     current = Depends(get_current_user),
     residence_id: str | None = Header(None, alias="X-Residence-Id"),
 ):
-    q = await db.execute(select(Measurement).where(Measurement.id == measurement_id, Measurement.deleted_at.is_(None)))
-    m = q.scalar_one_or_none()
-    if not m:
-        # ya estaba borrada o no existe
-        return
+    """Soft delete a measurement"""
+    measurement = await get_measurement_or_404(measurement_id, db)
 
-    await apply_residence_context_or_infer(db, current, residence_id, resident_id=m.resident_id)
+    await apply_residence_context_or_infer(db, current, residence_id, resident_id=measurement.resident_id)
 
-    if not _can_edit_delete(current, m.recorded_by):
+    if not _can_edit_delete(current, measurement.recorded_by):
         raise HTTPException(status_code=403, detail="You cannot delete this measurement")
 
     await db.execute(
         update(Measurement).where(Measurement.id == measurement_id).values(deleted_at=func.now(), updated_at=func.now())
     )
     await db.commit()
+
+# -------------------- Additional Endpoints --------------------
+
+@router.get("/{measurement_id}/history", response_model=list[dict])
+async def get_measurement_history(
+    measurement_id: str,
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+):
+    """Get measurement history"""
+    measurement = await get_measurement_or_404(measurement_id, db)
+
+    await apply_residence_context_or_infer(db, current, residence_id, resident_id=measurement.resident_id)
+
+    result = await db.execute(
+        text("""
+            SELECT h.*
+            FROM measurement_history h
+            WHERE h.measurement_id = :measurement_id
+            ORDER BY h.valid_from DESC
+        """),
+        {"measurement_id": measurement_id}
+    )
+
+    return [dict(row._mapping) for row in result.fetchall()]

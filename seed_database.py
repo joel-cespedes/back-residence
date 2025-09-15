@@ -13,12 +13,13 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select, text
-from app.models import Base, User, Residence, Floor, Room, Bed, Resident, Tag, ResidentTag, Device, TaskCategory, TaskTemplate, TaskApplication, Measurement
-from app.security import hash_alias, get_password_hash
-from app.config import DATABASE_URL
+from app.models import Base, User, Residence, UserResidence, Floor, Room, Bed, Resident, Tag, ResidentTag, Device, TaskCategory, TaskTemplate, TaskApplication, Measurement
+from app.security import hash_alias
+import bcrypt
+from app.config import settings
 
 # Configuración de la base de datos
-engine = create_async_engine(DATABASE_URL, echo=False)
+engine = create_async_engine(settings.database_url, echo=False)
 async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 # Datos de ejemplo
@@ -128,6 +129,7 @@ class DataSeeder:
 
         # 7. Crear dispositivos
         print("📱 Creando dispositivos...")
+        print(f"Superadmin ID: {superadmin.id}, type: {type(superadmin.id)}")
         dispositivos_res1 = await self.create_devices(res1, 8, superadmin)
         dispositivos_res2 = await self.create_devices(res2, 5, superadmin)
 
@@ -163,9 +165,9 @@ class DataSeeder:
         user = User(
             id=str(uuid.uuid4()),
             role=role,
-            alias_encrypted=hash_alias(alias),
+            alias_encrypted=hash_alias(alias).encode('utf-8'),
             alias_hash=hash_alias(alias),
-            password_hash=get_password_hash(password),
+            password_hash=bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8'),
             email_encrypted=None,
             phone_encrypted=None
         )
@@ -313,19 +315,25 @@ class DataSeeder:
             device_type = random.choice(device_types)
             device_names = NOMBRES_DISPOSITIVOS[device_type]
 
+            # Establecer user context para los triggers
+            await self.session.execute(text("SELECT set_config('app.user_id', :uid, true)"), {"uid": created_by.id})
+
+            device_id = str(uuid.uuid4())
+            print(f"Creando device {i+1}: ID={device_id}, residence_id={residence.id}, created_by={created_by.id} (type: {type(created_by.id)})")
             device = Device(
-                id=str(uuid.uuid4()),
+                id=device_id,
                 residence_id=residence.id,
                 type=device_type,
                 name=f"{random.choice(device_names)} {i+1:02d}",
-                mac=f"00:11:22:33:44:{i+1:02x}",
+                mac=f"00:11:22:{random.randint(0, 99):02d}:{random.randint(0, 99):02d}:{i+1:02d}",
                 battery_percent=random.randint(20, 100),
                 created_by=created_by.id
             )
             self.session.add(device)
             devices.append(device)
-
-        await self.session.commit()
+            # Commit individual para evitar problemas con UUIDs vacíos
+            await self.session.commit()
+            await self.session.refresh(device)
         return devices
 
     async def create_task_system(self, residence: Residence, created_by: User) -> List[TaskTemplate]:
@@ -373,13 +381,27 @@ class DataSeeder:
     async def create_historical_measurements(self, residents: List[Resident], devices: List[Device], professionals: List[User]):
         """Crea mediciones históricas de los últimos 2 años"""
 
+        # Cargar tags para cada residente
+        resident_tags = {}
+        for resident in residents:
+            result = await self.session.execute(
+                text("""
+                    SELECT t.name
+                    FROM tag t
+                    JOIN resident_tag rt ON t.id = rt.tag_id
+                    WHERE rt.resident_id = :resident_id
+                """),
+                {"resident_id": resident.id}
+            )
+            resident_tags[resident.id] = [row[0] for row in result.fetchall()]
+
         for resident in residents:
             # Establecer contexto para un profesional aleatorio
             professional = random.choice(professionals)
             await self.set_user_context(professional)
             # Determinar frecuencia de mediciones basada en condición del residente
-            has_diabetes = any(tag.name == "Diabetes" for tag in resident.tags if hasattr(tag, 'name'))
-            has_hypertension = any(tag.name == "Hipertensión" for tag in resident.tags if hasattr(tag, 'name'))
+            has_diabetes = "Diabetes" in resident_tags.get(resident.id, [])
+            has_hypertension = "Hipertensión" in resident_tags.get(resident.id, [])
 
             # Generar mediciones para cada día
             current_date = self.fecha_inicio.date()
@@ -513,12 +535,12 @@ async def main():
     """Función principal para ejecutar el seeding"""
     async with async_session() as session:
         # Verificar si ya hay datos
-        result = await session.execute(select(Residence).limit(1))
-        if result.scalar_one_or_none():
-            print("⚠️ La base de datos ya contiene datos. ¿Desea continuar? (y/N)")
-            if input().lower() != 'y':
-                print("Operación cancelada.")
-                return
+        # result = await session.execute(select(Residence).limit(1))
+        # if result.scalar_one_or_none():
+        #     print("⚠️ La base de datos ya contiene datos. ¿Desea continuar? (y/N)")
+        #     if input().lower() != 'y':
+        #         print("Operación cancelada.")
+        #         return
 
         seeder = DataSeeder(session)
         await seeder.seed_all()

@@ -14,6 +14,7 @@ from app.schemas import (
     TaskCategoryCreate, TaskCategoryUpdate, TaskCategoryOut,
     TaskTemplateCreate, TaskTemplateUpdate, TaskTemplateOut,
     TaskApplicationCreate, TaskApplicationUpdate, TaskApplicationOut,
+    PaginationParams, PaginatedResponse, FilterParams
 )
 from app.security import new_uuid
 
@@ -61,6 +62,85 @@ def _status_text_from_index(tpl: TaskTemplate, idx: int | None) -> str | None:
                4: tpl.status4, 5: tpl.status5, 6: tpl.status6}
     return mapping.get(idx)
 
+async def get_category_or_404(category_id: str, db: AsyncSession) -> TaskCategory:
+    """Get category by ID or raise 404"""
+    result = await db.execute(
+        select(TaskCategory).where(TaskCategory.id == category_id, TaskCategory.deleted_at.is_(None))
+    )
+    category = result.scalar_one_or_none()
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    return category
+
+async def get_template_or_404(template_id: str, db: AsyncSession) -> TaskTemplate:
+    """Get template by ID or raise 404"""
+    result = await db.execute(
+        select(TaskTemplate).where(TaskTemplate.id == template_id, TaskTemplate.deleted_at.is_(None))
+    )
+    template = result.scalar_one_or_none()
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return template
+
+async def get_application_or_404(application_id: str, db: AsyncSession) -> TaskApplication:
+    """Get application by ID or raise 404"""
+    result = await db.execute(
+        select(TaskApplication).where(TaskApplication.id == application_id, TaskApplication.deleted_at.is_(None))
+    )
+    application = result.scalar_one_or_none()
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+    return application
+
+async def paginate_query_tasks(
+    query,
+    db: AsyncSession,
+    pagination: PaginationParams,
+    filter_params: FilterParams = None
+) -> PaginatedResponse:
+    """Apply pagination and filters to a tasks query"""
+
+    if filter_params:
+        if filter_params.date_from:
+            query = query.where(query.column_descriptions[0]['type'].created_at >= filter_params.date_from)
+        if filter_params.date_to:
+            query = query.where(query.column_descriptions[0]['type'].created_at <= filter_params.date_to)
+        if filter_params.search:
+            search_term = f"%{filter_params.search}%"
+            if hasattr(query.column_descriptions[0]['type'], 'name'):
+                query = query.where(query.column_descriptions[0]['type'].name.ilike(search_term))
+
+    count_query = select(func.count()).select_from(query.subquery())
+    total = await db.scalar(count_query)
+
+    if pagination.sort_by:
+        sort_field = getattr(query.column_descriptions[0]['type'], pagination.sort_by, query.column_descriptions[0]['type'].created_at)
+        if pagination.sort_order == 'desc':
+            sort_field = sort_field.desc()
+        query = query.order_by(sort_field)
+    else:
+        query = query.order_by(query.column_descriptions[0]['type'].created_at.desc())
+
+    offset = (pagination.page - 1) * pagination.size
+    query = query.offset(offset).limit(pagination.size)
+
+    result = await db.execute(query)
+    items = [dict(row._mapping) for row in result.scalars().all()]
+
+    pages = (total + pagination.size - 1) // pagination.size
+    has_next = pagination.page < pages
+    has_prev = pagination.page > 1
+
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        page=pagination.page,
+        size=pagination.size,
+        pages=pages,
+        has_next=has_next,
+        has_prev=has_prev
+    )
+
 # -------------------- CATEGORIES --------------------
 
 @router.post("/categories", response_model=TaskCategoryOut, status_code=201)
@@ -91,12 +171,35 @@ async def create_category(
     await db.refresh(tc)
     return tc
 
-@router.get("/categories", response_model=list[TaskCategoryOut])
+@router.get("/categories", response_model=PaginatedResponse)
 async def list_categories(
+    pagination: PaginationParams = Depends(),
+    filters: FilterParams = Depends(),
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
     residence_id: str | None = Header(None, alias="X-Residence-Id"),
 ):
+    rid = await _set_residence_context(db, current, residence_id)
+    query = select(TaskCategory).where(TaskCategory.deleted_at.is_(None))
+
+    if current["role"] != "superadmin":
+        if not rid:
+            raise HTTPException(status_code=428, detail="Select a residence (X-Residence-Id)")
+        query = query.where(TaskCategory.residence_id == rid)
+
+    if filters and filters.search:
+        search_term = f"%{filters.search}%"
+        query = query.where(TaskCategory.name.ilike(search_term))
+
+    return await paginate_query_tasks(query, db, pagination, filters)
+
+@router.get("/categories/simple", response_model=list[TaskCategoryOut])
+async def list_categories_simple(
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+):
+    """Legacy endpoint: List categories without pagination"""
     rid = await _set_residence_context(db, current, residence_id)
     conds = [TaskCategory.deleted_at.is_(None)]
     if current["role"] != "superadmin":
@@ -107,29 +210,36 @@ async def list_categories(
     q = await db.execute(select(TaskCategory).where(and_(*conds)).order_by(TaskCategory.name))
     return q.scalars().all()
 
-@router.patch("/categories/{category_id}", response_model=TaskCategoryOut)
+@router.put("/categories/{category_id}", response_model=TaskCategoryOut)
 async def update_category(
     category_id: str,
     payload: TaskCategoryUpdate,
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
 ):
+    """Update a category"""
     if current["role"] not in ("superadmin", "manager"):
         raise HTTPException(status_code=403, detail="Only manager/superadmin can update categories")
 
-    q = await db.execute(select(TaskCategory).where(TaskCategory.id == category_id, TaskCategory.deleted_at.is_(None)))
-    cat = q.scalar_one_or_none()
-    if not cat:
-        raise HTTPException(status_code=404, detail="Category not found")
+    category = await get_category_or_404(category_id, db)
 
-    values = {
-        "name": payload.name if payload.name is not None else cat.name,
-        "updated_at": func.now(),
-    }
-    await db.execute(update(TaskCategory).where(TaskCategory.id == category_id).values(**values))
+    update_data = payload.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(category, field, value)
+
     await db.commit()
-    q2 = await db.execute(select(TaskCategory).where(TaskCategory.id == category_id))
-    return q2.scalar_one()
+    await db.refresh(category)
+    return category
+
+@router.patch("/categories/{category_id}", response_model=TaskCategoryOut)
+async def patch_category(
+    category_id: str,
+    payload: TaskCategoryUpdate,
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+):
+    """Patch a category (legacy endpoint)"""
+    return await update_category(category_id, payload, db, current)
 
 @router.delete("/categories/{category_id}", status_code=204)
 async def delete_category(
@@ -196,13 +306,39 @@ async def create_template(
     await db.refresh(t)
     return t
 
-@router.get("/templates", response_model=list[TaskTemplateOut])
+@router.get("/templates", response_model=PaginatedResponse)
 async def list_templates(
+    pagination: PaginationParams = Depends(),
+    filters: FilterParams = Depends(),
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
     residence_id: str | None = Header(None, alias="X-Residence-Id"),
     category_id: str | None = Query(None),
 ):
+    rid = await _set_residence_context(db, current, residence_id)
+    query = select(TaskTemplate).where(TaskTemplate.deleted_at.is_(None))
+
+    if current["role"] != "superadmin":
+        if not rid:
+            raise HTTPException(status_code=428, detail="Select a residence (X-Residence-Id)")
+        query = query.where(TaskTemplate.residence_id == rid)
+    if category_id:
+        query = query.where(TaskTemplate.task_category_id == category_id)
+
+    if filters and filters.search:
+        search_term = f"%{filters.search}%"
+        query = query.where(TaskTemplate.name.ilike(search_term))
+
+    return await paginate_query_tasks(query, db, pagination, filters)
+
+@router.get("/templates/simple", response_model=list[TaskTemplateOut])
+async def list_templates_simple(
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    category_id: str | None = Query(None),
+):
+    """Legacy endpoint: List templates without pagination"""
     rid = await _set_residence_context(db, current, residence_id)
     conds = [TaskTemplate.deleted_at.is_(None)]
     if current["role"] != "superadmin":
@@ -334,8 +470,38 @@ async def apply_task(
     await db.refresh(app)
     return app
 
-@router.get("/applications", response_model=list[TaskApplicationOut])
+@router.get("/applications", response_model=PaginatedResponse)
 async def list_applications(
+    pagination: PaginationParams = Depends(),
+    filters: FilterParams = Depends(),
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    resident_id: str | None = Query(None),
+    template_id: str | None = Query(None),
+):
+    rid = await _set_residence_context(db, current, residence_id)
+
+    query = select(TaskApplication).where(TaskApplication.deleted_at.is_(None))
+
+    if current["role"] != "superadmin":
+        if not rid:
+            raise HTTPException(status_code=428, detail="Select a residence (X-Residence-Id)")
+        query = query.where(TaskApplication.residence_id == rid)
+    if resident_id:
+        query = query.where(TaskApplication.resident_id == resident_id)
+    if template_id:
+        query = query.where(TaskApplication.task_template_id == template_id)
+
+    if filters and filters.date_from:
+        query = query.where(TaskApplication.applied_at >= filters.date_from)
+    if filters and filters.date_to:
+        query = query.where(TaskApplication.applied_at <= filters.date_to)
+
+    return await paginate_query_tasks(query, db, pagination, filters)
+
+@router.get("/applications/simple", response_model=list[TaskApplicationOut])
+async def list_applications_simple(
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
     residence_id: str | None = Header(None, alias="X-Residence-Id"),
@@ -343,6 +509,7 @@ async def list_applications(
     template_id: str | None = Query(None),
     limit: int = Query(100, ge=1, le=1000),
 ):
+    """Legacy endpoint: List applications without pagination"""
     rid = await _set_residence_context(db, current, residence_id)
 
     conds = [TaskApplication.deleted_at.is_(None)]

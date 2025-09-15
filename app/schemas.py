@@ -73,6 +73,10 @@ class FloorCreate(BaseModel):
     name: str
 
 
+class FloorUpdate(BaseModel):
+    name: Optional[str] = None
+
+
 class FloorOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -84,6 +88,10 @@ class FloorOut(BaseModel):
 class RoomCreate(BaseModel):
     floor_id: str
     name: str
+
+
+class RoomUpdate(BaseModel):
+    name: Optional[str] = None
 
 
 class RoomOut(BaseModel):
@@ -98,6 +106,10 @@ class RoomOut(BaseModel):
 class BedCreate(BaseModel):
     room_id: str
     name: str
+
+
+class BedUpdate(BaseModel):
+    name: Optional[str] = None
 
 
 class BedOut(BaseModel):
@@ -394,7 +406,7 @@ class DashboardMetric(BaseModel):
     title: str
     value: str
     change: str
-    changeType: 'positive' | 'negative'
+    changeType: Literal['positive', 'negative']
     icon: str
     color: str
     colorIcon: Optional[str] = None
@@ -420,7 +432,7 @@ class MeasurementStats(BaseModel):
     by_type: Dict[str, int]
     by_source: Dict[str, int]
     last_30_days: int
-    trend: 'increasing' | 'decreasing' | 'stable'
+    trend: Literal['increasing', 'decreasing', 'stable']
 
 class TaskStats(BaseModel):
     total_applications: int
@@ -469,3 +481,4 @@ class FilterParams(BaseModel):
     date_to: Optional[datetime] = Field(None, description="Filter to date")
     status: Optional[str] = Field(None, description="Filter by status")
     type: Optional[str] = Field(None, description="Filter by type")
+    search: Optional[str] = Field(None, description="Search term")

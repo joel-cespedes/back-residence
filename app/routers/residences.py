@@ -87,7 +87,16 @@ async def paginate_query(
 
     # Execute query
     result = await db.execute(query)
-    items = [dict(row._mapping) for row in result.scalars().all()]
+    items = []
+    for row in result.scalars().all():
+        item = {
+            'id': row.id,
+            'name': row.name,
+            'address': row.address,
+            'created_at': row.created_at,
+            'updated_at': row.updated_at
+        }
+        items.append(item)
 
     # Calculate pagination metadata
     pages = (total + pagination.size - 1) // pagination.size
