@@ -1,0 +1,1758 @@
+# Backend Code Dump
+from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from app.deps import get_db
+from app.models import Tag, ResidentTag
+
+router = APIRouter(prefix="/tags", tags=["tags"])
+
+@router.get("")
+async def list_tags(db: AsyncSession = Depends(get_db)):
+    r = await db.execute(select(Tag).where(Tag.deleted_at.is_(None)))
+    return [{"id": t.id, "name": t.name} for t in r.scalars().all()]
+
+
+# app/routers/auth.py
+from __future__ import annotations
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.schemas import LoginRequest, TokenResponse, Me
+from app.models import User
+from app.security import hash_alias, verify_password, create_access_token
+from app.db import get_session_anon
+from app.deps import get_current_user
+
+router = APIRouter(prefix="/auth", tags=["auth"])
+
+@router.post("/login", response_model=TokenResponse)
+async def login(
+    data: LoginRequest,
+    session: AsyncSession = Depends(get_session_anon),
+):
+    # NO transaction context here: the SET CONFIG in dependency already started one
+    q = await session.execute(
+        select(User).where(User.alias_hash == hash_alias(data.alias))
+    )
+    user = q.scalar_one_or_none()
+
+    if not user or not verify_password(data.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+        )
+
+    token = create_access_token(sub=str(user.id), role=user.role)
+    return TokenResponse(access_token=token)
+
+@router.get("/me", response_model=Me)
+async def me(current = Depends(get_current_user)):
+    return Me(id=current["id"], role=current["role"])
+# app/routers/residences.py
+from __future__ import annotations
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.deps import get_db, get_current_user
+from app.models import Residence, UserResidence
+
+router = APIRouter(prefix="/residences", tags=["residences"])
+
+@router.get("/mine", response_model=list[dict])
+async def my_residences(
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+):
+    """
+    Residencias asignadas al usuario (manager / professional).
+    Superadmin: devuelve todas.
+    """
+    if current["role"] == "superadmin":
+        q = await db.execute(
+            select(Residence.id, Residence.name).where(Residence.deleted_at.is_(None)).order_by(Residence.name)
+        )
+    else:
+        q = await db.execute(
+            select(Residence.id, Residence.name)
+            .join(UserResidence, UserResidence.residence_id == Residence.id)
+            .where(
+                UserResidence.user_id == current["id"],
+                Residence.deleted_at.is_(None)
+            )
+            .order_by(Residence.name)
+        )
+    return [{"id": rid, "name": name} for (rid, name) in q.all()]
+
+@router.get("", response_model=list[dict])
+async def list_residences(
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+):
+    """
+    Listado: superadmin ve todas; otros, solo las propias (igual que /mine).
+    """
+    return await my_residences(db=db, current=current)
+
+@router.get("/{residence_id}", response_model=dict)
+async def get_residence(
+    residence_id: str,
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+):
+    """
+    Detalle de una residencia si el usuario tiene acceso (o es superadmin).
+    """
+    if current["role"] == "superadmin":
+        q = await db.execute(
+            select(Residence).where(Residence.id == residence_id, Residence.deleted_at.is_(None))
+        )
+    else:
+        q = await db.execute(
+            select(Residence)
+            .join(UserResidence, UserResidence.residence_id == Residence.id)
+            .where(
+                Residence.id == residence_id,
+                UserResidence.user_id == current["id"],
+                Residence.deleted_at.is_(None),
+            )
+        )
+    res = q.scalar_one_or_none()
+    if not res:
+        raise HTTPException(status_code=404, detail="Residence not found or not allowed")
+
+    return {
+        "id": res.id,
+        "name": res.name,
+        "address": res.address,
+    }
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, update
+from app.deps import get_db, get_current_user
+from app.models import Resident, Bed
+from app.schemas import ResidentCreate, ResidentOut, ResidentChangeBed
+
+router = APIRouter(prefix="/residents", tags=["residents"])
+
+@router.post("", response_model=ResidentOut, status_code=201)
+async def create_resident(payload: ResidentCreate, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
+    res = Resident(**payload.model_dump(), status='active')
+    db.add(res); await db.commit(); await db.refresh(res)
+    return res
+
+@router.get("", response_model=list[ResidentOut])
+async def list_residents(db: AsyncSession = Depends(get_db)):
+    q = await db.execute(select(Resident).where(Resident.deleted_at.is_(None)))
+    return q.scalars().all()
+
+@router.patch("/{resident_id}/bed", response_model=ResidentOut)
+async def change_bed(resident_id: str, payload: ResidentChangeBed, db: AsyncSession = Depends(get_db)):
+    # el trigger en BD valida residencia y registra event_log
+    q = await db.execute(select(Resident).where(Resident.id==resident_id))
+    r = q.scalar_one_or_none()
+    if not r: raise HTTPException(404, "resident not found")
+    r.bed_id = payload.bed_id
+    await db.commit(); await db.refresh(r)
+    return r
+
+
+# app/routers/tasks.py
+from __future__ import annotations
+
+from fastapi import APIRouter, Depends, HTTPException, status, Header, Query
+from sqlalchemy import select, update, func, and_, text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.deps import get_db, get_current_user
+from app.models import (
+    TaskCategory, TaskTemplate, TaskApplication,
+    Resident, UserResidence
+)
+from app.schemas import (
+    TaskCategoryCreate, TaskCategoryUpdate, TaskCategoryOut,
+    TaskTemplateCreate, TaskTemplateUpdate, TaskTemplateOut,
+    TaskApplicationCreate, TaskApplicationUpdate, TaskApplicationOut,
+)
+from app.security import new_uuid
+
+router = APIRouter(prefix="/tasks", tags=["tasks"])
+
+# -------------------- helpers --------------------
+
+async def _set_residence_context(
+    db: AsyncSession,
+    current: dict,
+    residence_id: str | None,
+) -> str | None:
+    """
+    Fija app.residence_id si viene y valida pertenencia, salvo superadmin.
+    Devuelve rid (puede ser None si superadmin no envía cabecera).
+    """
+    rid = residence_id
+    if rid:
+        if current["role"] != "superadmin":
+            ok = await db.execute(
+                select(UserResidence).where(
+                    UserResidence.user_id == current["id"],
+                    UserResidence.residence_id == rid,
+                )
+            )
+            if ok.scalar_one_or_none() is None:
+                raise HTTPException(status_code=403, detail="Residence not allowed for this user")
+        await db.execute(text("SELECT set_config('app.residence_id', :rid, true)"), {"rid": rid})
+    return rid
+
+def _can_edit_delete(current: dict, owner_id: str | None = None) -> bool:
+    if current["role"] == "superadmin":
+        return True
+    if current["role"] == "manager":
+        return True
+    # professional: sólo lo suyo (para aplicaciones)
+    return owner_id is not None and current["id"] == owner_id
+
+def _status_text_from_index(tpl: TaskTemplate, idx: int | None) -> str | None:
+    if idx is None:
+        return None
+    if idx < 1 or idx > 6:
+        raise HTTPException(status_code=400, detail="selected_status_index must be 1..6")
+    mapping = {1: tpl.status1, 2: tpl.status2, 3: tpl.status3,
+               4: tpl.status4, 5: tpl.status5, 6: tpl.status6}
+    return mapping.get(idx)
+
+# -------------------- CATEGORIES --------------------
+
+@router.post("/categories", response_model=TaskCategoryOut, status_code=201)
+async def create_category(
+    payload: TaskCategoryCreate,
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+):
+    rid = await _set_residence_context(db, current, residence_id)
+    if current["role"] not in ("superadmin", "manager"):
+        raise HTTPException(status_code=403, detail="Only manager/superadmin can create categories")
+    if not rid:
+        raise HTTPException(status_code=428, detail="Select a residence (X-Residence-Id)")
+
+    # nombre único por residencia
+    exists = await db.scalar(
+        select(TaskCategory.id).where(TaskCategory.residence_id == rid,
+                                      TaskCategory.name == payload.name,
+                                      TaskCategory.deleted_at.is_(None))
+    )
+    if exists:
+        raise HTTPException(status_code=409, detail="Category name already exists in residence")
+
+    tc = TaskCategory(id=new_uuid(), residence_id=rid, name=payload.name)
+    db.add(tc)
+    await db.commit()
+    await db.refresh(tc)
+    return tc
+
+@router.get("/categories", response_model=list[TaskCategoryOut])
+async def list_categories(
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+):
+    rid = await _set_residence_context(db, current, residence_id)
+    conds = [TaskCategory.deleted_at.is_(None)]
+    if current["role"] != "superadmin":
+        if not rid:
+            raise HTTPException(status_code=428, detail="Select a residence (X-Residence-Id)")
+        conds.append(TaskCategory.residence_id == rid)
+
+    q = await db.execute(select(TaskCategory).where(and_(*conds)).order_by(TaskCategory.name))
+    return q.scalars().all()
+
+@router.patch("/categories/{category_id}", response_model=TaskCategoryOut)
+async def update_category(
+    category_id: str,
+    payload: TaskCategoryUpdate,
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+):
+    if current["role"] not in ("superadmin", "manager"):
+        raise HTTPException(status_code=403, detail="Only manager/superadmin can update categories")
+
+    q = await db.execute(select(TaskCategory).where(TaskCategory.id == category_id, TaskCategory.deleted_at.is_(None)))
+    cat = q.scalar_one_or_none()
+    if not cat:
+        raise HTTPException(status_code=404, detail="Category not found")
+
+    values = {
+        "name": payload.name if payload.name is not None else cat.name,
+        "updated_at": func.now(),
+    }
+    await db.execute(update(TaskCategory).where(TaskCategory.id == category_id).values(**values))
+    await db.commit()
+    q2 = await db.execute(select(TaskCategory).where(TaskCategory.id == category_id))
+    return q2.scalar_one()
+
+@router.delete("/categories/{category_id}", status_code=204)
+async def delete_category(
+    category_id: str,
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+):
+    if current["role"] not in ("superadmin", "manager"):
+        raise HTTPException(status_code=403, detail="Only manager/superadmin can delete categories")
+
+    q = await db.execute(select(TaskCategory).where(TaskCategory.id == category_id, TaskCategory.deleted_at.is_(None)))
+    cat = q.scalar_one_or_none()
+    if not cat:
+        return
+    await db.execute(
+        update(TaskCategory).where(TaskCategory.id == category_id).values(deleted_at=func.now(), updated_at=func.now())
+    )
+    await db.commit()
+
+# -------------------- TEMPLATES --------------------
+
+@router.post("/templates", response_model=TaskTemplateOut, status_code=201)
+async def create_template(
+    payload: TaskTemplateCreate,
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+):
+    rid = await _set_residence_context(db, current, residence_id)
+    if current["role"] not in ("superadmin", "manager"):
+        raise HTTPException(status_code=403, detail="Only manager/superadmin can create templates")
+    if not rid:
+        raise HTTPException(status_code=428, detail="Select a residence (X-Residence-Id)")
+
+    # comprobar categoría pertenece a la misma residencia
+    c = await db.scalar(
+        select(TaskCategory.residence_id).where(TaskCategory.id == payload.task_category_id, TaskCategory.deleted_at.is_(None))
+    )
+    if not c or c != rid:
+        raise HTTPException(status_code=400, detail="Category not found in this residence")
+
+    # nombre único por categoría dentro de la residencia
+    exists = await db.scalar(
+        select(TaskTemplate.id).where(TaskTemplate.residence_id == rid,
+                                      TaskTemplate.task_category_id == payload.task_category_id,
+                                      TaskTemplate.name == payload.name,
+                                      TaskTemplate.deleted_at.is_(None))
+    )
+    if exists:
+        raise HTTPException(status_code=409, detail="Template name already exists in this category")
+
+    t = TaskTemplate(
+        id=new_uuid(),
+        residence_id=rid,
+        task_category_id=payload.task_category_id,
+        name=payload.name,
+        status1=payload.status1, status2=payload.status2, status3=payload.status3,
+        status4=payload.status4, status5=payload.status5, status6=payload.status6,
+        audio_phrase=payload.audio_phrase,
+        is_block=payload.is_block,
+    )
+    db.add(t)
+    await db.commit()
+    await db.refresh(t)
+    return t
+
+@router.get("/templates", response_model=list[TaskTemplateOut])
+async def list_templates(
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    category_id: str | None = Query(None),
+):
+    rid = await _set_residence_context(db, current, residence_id)
+    conds = [TaskTemplate.deleted_at.is_(None)]
+    if current["role"] != "superadmin":
+        if not rid:
+            raise HTTPException(status_code=428, detail="Select a residence (X-Residence-Id)")
+        conds.append(TaskTemplate.residence_id == rid)
+    if category_id:
+        conds.append(TaskTemplate.task_category_id == category_id)
+
+    q = await db.execute(select(TaskTemplate).where(and_(*conds)).order_by(TaskTemplate.name))
+    return q.scalars().all()
+
+@router.patch("/templates/{template_id}", response_model=TaskTemplateOut)
+async def update_template(
+    template_id: str,
+    payload: TaskTemplateUpdate,
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+):
+    if current["role"] not in ("superadmin", "manager"):
+        raise HTTPException(status_code=403, detail="Only manager/superadmin can update templates")
+
+    q = await db.execute(select(TaskTemplate).where(TaskTemplate.id == template_id, TaskTemplate.deleted_at.is_(None)))
+    tpl = q.scalar_one_or_none()
+    if not tpl:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    # si cambia de categoría, validar que sea misma residencia
+    new_cat = tpl.task_category_id if payload.task_category_id is None else payload.task_category_id
+    if new_cat != tpl.task_category_id:
+        c_res = await db.scalar(
+            select(TaskCategory.residence_id).where(TaskCategory.id == new_cat, TaskCategory.deleted_at.is_(None))
+        )
+        if not c_res or c_res != tpl.residence_id:
+            raise HTTPException(status_code=400, detail="New category not in same residence")
+
+    values = {
+        "task_category_id": new_cat,
+        "name": payload.name if payload.name is not None else tpl.name,
+        "status1": tpl.status1 if payload.status1 is None else payload.status1,
+        "status2": tpl.status2 if payload.status2 is None else payload.status2,
+        "status3": tpl.status3 if payload.status3 is None else payload.status3,
+        "status4": tpl.status4 if payload.status4 is None else payload.status4,
+        "status5": tpl.status5 if payload.status5 is None else payload.status5,
+        "status6": tpl.status6 if payload.status6 is None else payload.status6,
+        "audio_phrase": tpl.audio_phrase if payload.audio_phrase is None else payload.audio_phrase,
+        "is_block": tpl.is_block if payload.is_block is None else payload.is_block,
+        "updated_at": func.now(),
+    }
+    await db.execute(update(TaskTemplate).where(TaskTemplate.id == template_id).values(**values))
+    await db.commit()
+    q2 = await db.execute(select(TaskTemplate).where(TaskTemplate.id == template_id))
+    return q2.scalar_one()
+
+@router.delete("/templates/{template_id}", status_code=204)
+async def delete_template(
+    template_id: str,
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+):
+    if current["role"] not in ("superadmin", "manager"):
+        raise HTTPException(status_code=403, detail="Only manager/superadmin can delete templates")
+
+    q = await db.execute(select(TaskTemplate).where(TaskTemplate.id == template_id, TaskTemplate.deleted_at.is_(None)))
+    tpl = q.scalar_one_or_none()
+    if not tpl:
+        return
+    await db.execute(
+        update(TaskTemplate).where(TaskTemplate.id == template_id).values(deleted_at=func.now(), updated_at=func.now())
+    )
+    await db.commit()
+
+# -------------------- APPLICATIONS (aplicar tarea) --------------------
+
+@router.post("/applications", response_model=TaskApplicationOut, status_code=201)
+async def apply_task(
+    payload: TaskApplicationCreate,
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+):
+    # Fijar/validar residencia
+    rid = await _set_residence_context(db, current, residence_id)
+    if not rid and current["role"] != "superadmin":
+        raise HTTPException(status_code=428, detail="Select a residence (X-Residence-Id)")
+
+    # Validar residente pertenece a residencia
+    r_res = await db.scalar(
+        select(Resident.residence_id).where(Resident.id == payload.resident_id, Resident.deleted_at.is_(None))
+    )
+    if not r_res:
+        raise HTTPException(status_code=400, detail="Resident not found")
+    if rid and r_res != rid:
+        raise HTTPException(status_code=400, detail="Resident not in selected residence")
+    if not rid:
+        # superadmin sin header: usar la del residente
+        rid = r_res
+        await db.execute(text("SELECT set_config('app.residence_id', :rid, true)"), {"rid": rid})
+
+    # Validar template pertenece a misma residencia
+    t_res = await db.scalar(
+        select(TaskTemplate.residence_id).where(TaskTemplate.id == payload.task_template_id,
+                                                TaskTemplate.deleted_at.is_(None))
+    )
+    if not t_res:
+        raise HTTPException(status_code=400, detail="Template not found")
+    if t_res != rid:
+        raise HTTPException(status_code=400, detail="Template not in selected residence")
+
+    # Resolver status text si se envió índice
+    qtpl = await db.execute(select(TaskTemplate).where(TaskTemplate.id == payload.task_template_id))
+    tpl = qtpl.scalar_one()
+    status_text = payload.selected_status_text
+    if payload.selected_status_index is not None and not status_text:
+        status_text = _status_text_from_index(tpl, payload.selected_status_index)
+
+    app = TaskApplication(
+        id=new_uuid(),
+        residence_id=rid,
+        resident_id=payload.resident_id,
+        task_template_id=payload.task_template_id,
+        applied_by=current["id"],
+        applied_at=payload.applied_at or func.now(),
+        selected_status_index=payload.selected_status_index,
+        selected_status_text=status_text,
+    )
+    db.add(app)
+    await db.commit()
+    await db.refresh(app)
+    return app
+
+@router.get("/applications", response_model=list[TaskApplicationOut])
+async def list_applications(
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    resident_id: str | None = Query(None),
+    template_id: str | None = Query(None),
+    limit: int = Query(100, ge=1, le=1000),
+):
+    rid = await _set_residence_context(db, current, residence_id)
+
+    conds = [TaskApplication.deleted_at.is_(None)]
+    if current["role"] != "superadmin":
+        if not rid:
+            raise HTTPException(status_code=428, detail="Select a residence (X-Residence-Id)")
+        conds.append(TaskApplication.residence_id == rid)
+    if resident_id:
+        conds.append(TaskApplication.resident_id == resident_id)
+    if template_id:
+        conds.append(TaskApplication.task_template_id == template_id)
+
+    q = await db.execute(
+        select(TaskApplication).where(and_(*conds)).order_by(TaskApplication.applied_at.desc()).limit(limit)
+    )
+    return q.scalars().all()
+
+@router.patch("/applications/{application_id}", response_model=TaskApplicationOut)
+async def update_application(
+    application_id: str,
+    payload: TaskApplicationUpdate,
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+):
+    q = await db.execute(select(TaskApplication).where(TaskApplication.id == application_id,
+                                                       TaskApplication.deleted_at.is_(None)))
+    app = q.scalar_one_or_none()
+    if not app:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    if not _can_edit_delete(current, owner_id=app.applied_by):
+        raise HTTPException(status_code=403, detail="You cannot edit this application")
+
+    new_index = app.selected_status_index if payload.selected_status_index is None else payload.selected_status_index
+    new_text = app.selected_status_text if payload.selected_status_text is None else payload.selected_status_text
+
+    if payload.selected_status_index is not None and payload.selected_status_text is None:
+        # si sólo cambia el índice, recalcular texto desde el template
+        qtpl = await db.execute(select(TaskTemplate).where(TaskTemplate.id == app.task_template_id))
+        tpl = qtpl.scalar_one()
+        new_text = _status_text_from_index(tpl, payload.selected_status_index)
+
+    values = {
+        "selected_status_index": new_index,
+        "selected_status_text": new_text,
+        "applied_at": payload.applied_at if payload.applied_at is not None else app.applied_at,
+        "updated_at": func.now(),
+    }
+    await db.execute(update(TaskApplication).where(TaskApplication.id == application_id).values(**values))
+    await db.commit()
+
+    q2 = await db.execute(select(TaskApplication).where(TaskApplication.id == application_id))
+    return q2.scalar_one()
+
+@router.delete("/applications/{application_id}", status_code=204)
+async def delete_application(
+    application_id: str,
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+):
+    q = await db.execute(select(TaskApplication).where(TaskApplication.id == application_id,
+                                                       TaskApplication.deleted_at.is_(None)))
+    app = q.scalar_one_or_none()
+    if not app:
+        return
+    if not _can_edit_delete(current, owner_id=app.applied_by):
+        raise HTTPException(status_code=403, detail="You cannot delete this application")
+
+    await db.execute(
+        update(TaskApplication).where(TaskApplication.id == application_id).values(deleted_at=func.now(),
+                                                                                   updated_at=func.now())
+    )
+    await db.commit()
+# Routers package
+
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from app.deps import get_db
+from app.models import Floor, Room, Bed
+
+router = APIRouter(prefix="/structure", tags=["structure"])
+
+@router.get("/floors/{residence_id}")
+async def floors(residence_id: str, db: AsyncSession = Depends(get_db)):
+    r = await db.execute(select(Floor).where(Floor.residence_id==residence_id, Floor.deleted_at.is_(None)))
+    return [ {"id": f.id, "name": f.name} for f in r.scalars().all() ]
+
+@router.get("/rooms/{floor_id}")
+async def rooms(floor_id: str, db: AsyncSession = Depends(get_db)):
+    r = await db.execute(select(Room).where(Room.floor_id==floor_id, Room.deleted_at.is_(None)))
+    return [ {"id": x.id, "name": x.name} for x in r.scalars().all() ]
+
+@router.get("/beds/{room_id}")
+async def beds(room_id: str, db: AsyncSession = Depends(get_db)):
+    r = await db.execute(select(Bed).where(Bed.room_id==room_id, Bed.deleted_at.is_(None)))
+    return [ {"id": x.id, "name": x.name} for x in r.scalars().all() ]
+
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from app.deps import get_db, get_current_user
+from app.models import Device
+from app.schemas import DeviceCreate, DeviceOut
+
+router = APIRouter(prefix="/devices", tags=["devices"])
+
+@router.post("", response_model=DeviceOut, status_code=201)
+async def create_device(payload: DeviceCreate, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
+    d = Device(**payload.model_dump(), created_by=user["id"])
+    db.add(d); await db.commit(); await db.refresh(d)
+    return d
+
+@router.get("", response_model=list[DeviceOut])
+async def list_devices(db: AsyncSession = Depends(get_db)):
+    r = await db.execute(select(Device).where(Device.deleted_at.is_(None)))
+    return r.scalars().all()
+
+
+# app/routers/measurements.py
+from __future__ import annotations
+
+from fastapi import APIRouter, Depends, HTTPException, status, Header, Query
+from sqlalchemy import select, update, func, and_
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.deps import get_db, get_current_user
+from app.security import new_uuid
+from app.models import (
+    Measurement, Resident, Device, UserResidence
+)
+from app.schemas import (
+    MeasurementCreate, MeasurementOut, MeasurementUpdate
+)
+from sqlalchemy import text
+
+router = APIRouter(prefix="/measurements", tags=["measurements"])
+
+# -------------------- helpers --------------------
+
+async def apply_residence_context_or_infer(
+    db: AsyncSession,
+    current: dict,
+    residence_id: str | None,
+    resident_id: str | None = None,
+    device_id: str | None = None,
+) -> str:
+    """
+    Devuelve residence_id efectivo:
+      - usa el header si viene (validando pertenencia),
+      - si no, intenta inferirlo por resident_id o device_id,
+      - si no se puede y no es superadmin -> 428.
+    Fija app.residence_id en la sesión para RLS/consultas posteriores.
+    """
+    rid = residence_id
+
+    # Inferir por residente
+    if not rid and resident_id:
+        rid = await db.scalar(
+            select(Resident.residence_id).where(
+                Resident.id == resident_id,
+                Resident.deleted_at.is_(None)
+            )
+        )
+        if not rid:
+            raise HTTPException(status_code=400, detail="Resident not found")
+
+    # Inferir por dispositivo
+    if not rid and device_id:
+        rid = await db.scalar(
+            select(Device.residence_id).where(
+                Device.id == device_id,
+                Device.deleted_at.is_(None)
+            )
+        )
+        if not rid:
+            raise HTTPException(status_code=400, detail="Device not found")
+
+    if not rid and current["role"] != "superadmin":
+        raise HTTPException(
+            status_code=status.HTTP_428_PRECONDITION_REQUIRED,
+            detail="Select a residence (send X-Residence-Id or include resident_id/device_id to infer)"
+        )
+
+    # Validar pertenencia (salvo superadmin)
+    if rid and current["role"] != "superadmin":
+        ok = await db.execute(
+            select(UserResidence).where(
+                UserResidence.user_id == current["id"],
+                UserResidence.residence_id == rid,
+            )
+        )
+        if ok.scalar_one_or_none() is None:
+            raise HTTPException(status_code=403, detail="Residence not allowed for this user")
+
+    # Fijar contexto
+    if rid:
+        await db.execute(text("SELECT set_config('app.residence_id', :rid, true)"), {"rid": rid})
+
+    return rid
+
+def _check_measurement_fields_by_type(payload: MeasurementCreate | MeasurementUpdate):
+    """
+    Comprobaciones de coherencia rápida según el tipo:
+      - bp: necesita al menos (systolic, diastolic) y puede venir pulse_bpm
+      - spo2: requiere spo2 y puede pulse_bpm
+      - weight: requiere weight_kg
+      - temperature: requiere temperature_c
+    """
+    t = getattr(payload, "type", None)
+    if t == "bp":
+        if payload.systolic is None or payload.diastolic is None:
+            raise HTTPException(status_code=400, detail="BP requires systolic and diastolic")
+    elif t == "spo2":
+        if payload.spo2 is None:
+            raise HTTPException(status_code=400, detail="SpO2 requires spo2")
+    elif t == "weight":
+        if payload.weight_kg is None:
+            raise HTTPException(status_code=400, detail="Weight requires weight_kg")
+    elif t == "temperature":
+        if payload.temperature_c is None:
+            raise HTTPException(status_code=400, detail="Temperature requires temperature_c")
+
+def _can_edit_delete(current: dict, recorder_id: str, role_manager_label: str = "manager") -> bool:
+    if current["role"] == "superadmin":
+        return True
+    if current["role"] == role_manager_label:
+        return True
+    # professional: solo lo suyo
+    return current["id"] == recorder_id
+
+# -------------------- endpoints --------------------
+
+@router.post("", response_model=MeasurementOut)
+async def create_measurement(
+    payload: MeasurementCreate,
+    db: AsyncSession = Depends(get_db),                     # fija app.user_id
+    current = Depends(get_current_user),
+    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+):
+    """
+    Crea una medición. Si el header X-Residence-Id no llega, se intenta inferir
+    a partir de resident_id o device_id. Valida pertenencia y coherencia de datos.
+    """
+    # Validación por tipo
+    _check_measurement_fields_by_type(payload)
+
+    # Fijar / inferir residencia y validar acceso
+    rid = await apply_residence_context_or_infer(
+        db, current, residence_id, resident_id=payload.resident_id, device_id=payload.device_id
+    )
+
+    # Coherencia de residente y (opcional) dispositivo dentro de la residencia
+    res_ok = await db.scalar(
+        select(Resident.id).where(
+            Resident.id == payload.resident_id,
+            Resident.residence_id == rid,
+            Resident.deleted_at.is_(None),
+        )
+    )
+    if not res_ok:
+        raise HTTPException(status_code=400, detail="Resident does not belong to selected residence")
+
+    if payload.device_id:
+        dev_ok = await db.scalar(
+            select(Device.id).where(
+                Device.id == payload.device_id,
+                Device.residence_id == rid,
+                Device.deleted_at.is_(None),
+            )
+        )
+        if not dev_ok:
+            raise HTTPException(status_code=400, detail="Device does not belong to selected residence")
+
+    m = Measurement(
+        id=new_uuid(),
+        residence_id=rid,
+        resident_id=payload.resident_id,
+        recorded_by=current["id"],
+        source=payload.source,             # 'device' | 'voice' | 'manual'
+        device_id=payload.device_id,
+        type=payload.type,                 # 'bp' | 'spo2' | 'weight' | 'temperature'
+        systolic=payload.systolic,
+        diastolic=payload.diastolic,
+        pulse_bpm=payload.pulse_bpm,
+        spo2=payload.spo2,
+        weight_kg=payload.weight_kg,
+        temperature_c=payload.temperature_c,
+        taken_at=payload.taken_at,
+    )
+    db.add(m)
+    await db.commit()
+    await db.refresh(m)
+    return m
+
+@router.get("", response_model=list[MeasurementOut])
+async def list_measurements(
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    resident_id: str | None = Query(None),
+    type: str | None = Query(None, description="bp|spo2|weight|temperature"),
+    since: str | None = Query(None, description="ISO datetime"),
+    until: str | None = Query(None, description="ISO datetime"),
+    limit: int = Query(100, ge=1, le=1000),
+):
+    """
+    Lista mediciones en la residencia del contexto (o inferida por resident_id / device_id).
+    Filtros opcionales: resident_id, type, rango de fechas.
+    """
+    rid = await apply_residence_context_or_infer(db, current, residence_id, resident_id=resident_id)
+
+    conds = [Measurement.residence_id == rid, Measurement.deleted_at.is_(None)]
+    if resident_id:
+        conds.append(Measurement.resident_id == resident_id)
+    if type:
+        conds.append(Measurement.type == type)
+    if since:
+        conds.append(Measurement.taken_at >= since)
+    if until:
+        conds.append(Measurement.taken_at <= until)
+
+    q = await db.execute(
+        select(Measurement).where(and_(*conds)).order_by(Measurement.taken_at.desc()).limit(limit)
+    )
+    return q.scalars().all()
+
+@router.get("/{measurement_id}", response_model=MeasurementOut)
+async def get_measurement(
+    measurement_id: str,
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+):
+    # Traer la medición
+    q = await db.execute(select(Measurement).where(Measurement.id == measurement_id, Measurement.deleted_at.is_(None)))
+    m = q.scalar_one_or_none()
+    if not m:
+        raise HTTPException(status_code=404, detail="Measurement not found")
+
+    # Fijar/validar residencia respecto a la medición
+    await apply_residence_context_or_infer(db, current, residence_id, resident_id=m.resident_id)
+
+    return m
+
+@router.patch("/{measurement_id}", response_model=MeasurementOut)
+async def update_measurement(
+    measurement_id: str,
+    payload: MeasurementUpdate,
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+):
+    q = await db.execute(select(Measurement).where(Measurement.id == measurement_id, Measurement.deleted_at.is_(None)))
+    m = q.scalar_one_or_none()
+    if not m:
+        raise HTTPException(status_code=404, detail="Measurement not found")
+
+    # Contexto/validación de residencia
+    rid = await apply_residence_context_or_infer(db, current, residence_id, resident_id=m.resident_id)
+
+    # Permisos: superadmin/manager cualquiera; professional solo si es suyo
+    if not _can_edit_delete(current, m.recorded_by):
+        raise HTTPException(status_code=403, detail="You cannot edit this measurement")
+
+    # Validación de tipo si lo cambia (normalmente no se cambia el tipo)
+    if payload.type is not None and payload.type != m.type:
+        _check_measurement_fields_by_type(payload)
+
+    # Validar device si lo cambian
+    if payload.device_id:
+        dev_ok = await db.scalar(
+            select(Device.id).where(
+                Device.id == payload.device_id,
+                Device.residence_id == rid,
+                Device.deleted_at.is_(None),
+            )
+        )
+        if not dev_ok:
+            raise HTTPException(status_code=400, detail="Device does not belong to selected residence")
+
+    changes = {
+        "source": payload.source if payload.source is not None else m.source,
+        "device_id": payload.device_id if payload.device_id is not None else m.device_id,
+        "type": payload.type if payload.type is not None else m.type,
+        "systolic": payload.systolic if payload.systolic is not None else m.systolic,
+        "diastolic": payload.diastolic if payload.diastolic is not None else m.diastolic,
+        "pulse_bpm": payload.pulse_bpm if payload.pulse_bpm is not None else m.pulse_bpm,
+        "spo2": payload.spo2 if payload.spo2 is not None else m.spo2,
+        "weight_kg": payload.weight_kg if payload.weight_kg is not None else m.weight_kg,
+        "temperature_c": payload.temperature_c if payload.temperature_c is not None else m.temperature_c,
+        "taken_at": payload.taken_at if payload.taken_at is not None else m.taken_at,
+        "updated_at": func.now(),
+    }
+
+    await db.execute(
+        update(Measurement).where(Measurement.id == measurement_id).values(**changes)
+    )
+    await db.commit()
+
+    # devolver el registro actualizado
+    q2 = await db.execute(select(Measurement).where(Measurement.id == measurement_id))
+    return q2.scalar_one()
+
+@router.delete("/{measurement_id}", status_code=204)
+async def delete_measurement(
+    measurement_id: str,
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+):
+    q = await db.execute(select(Measurement).where(Measurement.id == measurement_id, Measurement.deleted_at.is_(None)))
+    m = q.scalar_one_or_none()
+    if not m:
+        # ya estaba borrada o no existe
+        return
+
+    await apply_residence_context_or_infer(db, current, residence_id, resident_id=m.resident_id)
+
+    if not _can_edit_delete(current, m.recorded_by):
+        raise HTTPException(status_code=403, detail="You cannot delete this measurement")
+
+    await db.execute(
+        update(Measurement).where(Measurement.id == measurement_id).values(deleted_at=func.now(), updated_at=func.now())
+    )
+    await db.commit()
+# app/db.py
+from __future__ import annotations
+
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy import text
+from app.config import settings
+
+# Crea el engine async (Postgres). La URL viene de .env (DATABASE_URL)
+# Ejemplo válido:
+#   postgresql+asyncpg://user:pass@localhost:5432/residences   (Python 3.12)
+# Si usas psycopg async, ajusta a: postgresql+psycopg://...
+engine = create_async_engine(
+    settings.database_url,
+    future=True,
+    pool_pre_ping=True,
+)
+
+# Session factory
+AsyncSessionLocal = async_sessionmaker(
+    engine,
+    expire_on_commit=False,
+    class_=AsyncSession,
+)
+
+async def get_session(user_id: str | None):
+    """
+    Devuelve una sesión configurando app.user_id para RLS/auditoría.
+    Úsala en endpoints que requieren usuario autenticado.
+    """
+    async with AsyncSessionLocal() as session:
+        uid = user_id or ""
+        # Fija el user_id de la petición para las políticas RLS en Postgres
+        await session.execute(text("SELECT set_config('app.user_id', :uid, true)"), {"uid": uid})
+        yield session
+
+async def get_session_anon():
+    """
+    Devuelve una sesión 'anónima' (app.user_id = '').
+    Útil para /auth/login (no hay usuario aún).
+    """
+    async with AsyncSessionLocal() as session:
+        await session.execute(text("SELECT set_config('app.user_id', '', true)"))
+        yield session
+# app/deps.py
+from __future__ import annotations
+
+from fastapi import Depends, HTTPException, status, Header, Query
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, text
+from app.db import AsyncSessionLocal
+from app.security import decode_token
+from app.models import UserResidence
+
+bearer = HTTPBearer(auto_error=False)
+
+async def get_current_user(creds: HTTPAuthorizationCredentials = Depends(bearer)):
+    if not creds:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    try:
+        payload = decode_token(creds.credentials)
+        # payload contiene "sub" y "role"
+        return {"id": payload["sub"], "role": payload["role"]}
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+async def get_db(current=Depends(get_current_user)) -> AsyncSession:
+    """
+    Sesión con app.user_id configurado para RLS/auditoría.
+    No obliga a elegir residencia.
+    """
+    async with AsyncSessionLocal() as session:
+        await session.execute(text("SELECT set_config('app.user_id', :uid, true)"), {"uid": current["id"]})
+        yield session
+
+async def get_db_with_residence(
+    current = Depends(get_current_user),
+    residence_id_header: str | None = Header(None, alias="X-Residence-Id"),
+    residence_id_query: str | None = Query(None, alias="residenceId"),
+) -> AsyncSession:
+    """
+    Igual que get_db pero OBLIGA a enviar una residencia (header o query), salvo superadmin.
+    Valida pertenencia y fija app.residence_id.
+    """
+    residence_id = residence_id_header or residence_id_query
+
+    if current["role"] != "superadmin" and not residence_id:
+        raise HTTPException(
+            status_code=status.HTTP_428_PRECONDITION_REQUIRED,
+            detail="Select a residence (send X-Residence-Id or ?residenceId=)"
+        )
+
+    async with AsyncSessionLocal() as session:
+        # Fijar usuario para RLS
+        await session.execute(text("SELECT set_config('app.user_id', :uid, true)"), {"uid": current["id"]})
+
+        # Validar y fijar residencia si viene
+        if residence_id:
+            ok = await session.execute(
+                select(UserResidence).where(
+                    UserResidence.user_id == current["id"],
+                    UserResidence.residence_id == residence_id,
+                )
+            )
+            if current["role"] != "superadmin" and ok.scalar_one_or_none() is None:
+                raise HTTPException(status_code=403, detail="Residence not allowed for this user")
+
+            await session.execute(text("SELECT set_config('app.residence_id', :rid, true)"), {"rid": residence_id})
+
+        yield session
+from pydantic import BaseModel
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+class Settings(BaseModel):
+    database_url: str = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/residences")
+    jwt_secret: str = os.getenv("JWT_SECRET", "change_me_please")
+    jwt_alg: str = os.getenv("JWT_ALG", "HS256")
+    alias_hash_alg: str = os.getenv("ALIAS_HASH_ALG", "sha256")
+    cors_origins: str = os.getenv("CORS_ORIGINS", "*")
+
+settings = Settings()
+
+
+# app/models.py
+from __future__ import annotations
+
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.dialects.postgresql import UUID, BYTEA, ENUM, JSONB
+from sqlalchemy import Text, Integer, SmallInteger, Boolean, ForeignKey, Date, DateTime, func
+from datetime import datetime, date
+from typing import Optional, Dict
+
+# ---------- Base ----------
+class Base(DeclarativeBase):
+    pass
+
+# ---------- Enums ya creados en BD (no crear tipos) ----------
+user_role_enum          = ENUM('superadmin', 'manager', 'professional', name='user_role_enum', create_type=False)
+resident_status_enum    = ENUM('active', 'discharged', 'deceased',     name='resident_status_enum', create_type=False)
+device_type_enum        = ENUM('blood_pressure','pulse_oximeter','scale','thermometer', name='device_type_enum', create_type=False)
+measurement_type_enum   = ENUM('bp','spo2','weight','temperature',     name='measurement_type_enum', create_type=False)
+measurement_source_enum = ENUM('device','voice','manual',              name='measurement_source_enum', create_type=False)
+
+# Nota: usamos UUID(as_uuid=False) para mapear como str. Si prefieres uuid.UUID, usa as_uuid=True y anota con uuid.UUID.
+
+# ---------- Tablas ----------
+class User(Base):
+    __tablename__ = "user"
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True)
+    role: Mapped[str] = mapped_column(user_role_enum, nullable=False)
+    alias_encrypted: Mapped[bytes] = mapped_column(BYTEA, nullable=False)
+    alias_hash: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    email_encrypted: Mapped[Optional[bytes]] = mapped_column(BYTEA)
+    phone_encrypted: Mapped[Optional[bytes]] = mapped_column(BYTEA)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+class Residence(Base):
+    __tablename__ = "residence"
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    address: Mapped[Optional[str]] = mapped_column(Text)
+    phone_encrypted: Mapped[Optional[bytes]] = mapped_column(BYTEA)
+    email_encrypted: Mapped[Optional[bytes]] = mapped_column(BYTEA)
+    created_by: Mapped[Optional[str]] = mapped_column(UUID(as_uuid=False), ForeignKey("user.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+class UserResidence(Base):
+    __tablename__ = "user_residence"
+    user_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("user.id", ondelete="CASCADE"), primary_key=True)
+    residence_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("residence.id", ondelete="CASCADE"), primary_key=True)
+
+class Floor(Base):
+    __tablename__ = "floor"
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True)
+    residence_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("residence.id", ondelete="RESTRICT"), nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    created_by: Mapped[Optional[str]] = mapped_column(UUID(as_uuid=False), ForeignKey("user.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+class Room(Base):
+    __tablename__ = "room"
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True)
+    residence_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("residence.id", ondelete="RESTRICT"), nullable=False)
+    floor_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("floor.id", ondelete="RESTRICT"), nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    created_by: Mapped[Optional[str]] = mapped_column(UUID(as_uuid=False), ForeignKey("user.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+class Bed(Base):
+    __tablename__ = "bed"
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True)
+    residence_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("residence.id", ondelete="RESTRICT"), nullable=False)
+    room_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("room.id", ondelete="RESTRICT"), nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    created_by: Mapped[Optional[str]] = mapped_column(UUID(as_uuid=False), ForeignKey("user.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+class Resident(Base):
+    __tablename__ = "resident"
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True)
+    residence_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("residence.id", ondelete="RESTRICT"), nullable=False)
+    full_name: Mapped[str] = mapped_column(Text, nullable=False)
+    birth_date: Mapped[date] = mapped_column(Date, nullable=False)
+    sex: Mapped[Optional[str]] = mapped_column(Text)
+    gender: Mapped[Optional[str]] = mapped_column(Text)
+    comments: Mapped[Optional[str]] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(resident_status_enum, server_default='active', nullable=False)
+    status_changed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    bed_id: Mapped[Optional[str]] = mapped_column(UUID(as_uuid=False), ForeignKey("bed.id", ondelete="SET NULL"))
+    created_by: Mapped[Optional[str]] = mapped_column(UUID(as_uuid=False), ForeignKey("user.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+class Tag(Base):
+    __tablename__ = "tag"
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True)
+    name: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+    created_by: Mapped[Optional[str]] = mapped_column(UUID(as_uuid=False), ForeignKey("user.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+class ResidentTag(Base):
+    __tablename__ = "resident_tag"
+    resident_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("resident.id", ondelete="CASCADE"), primary_key=True)
+    tag_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("tag.id", ondelete="RESTRICT"), primary_key=True)
+    assigned_by: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("user.id"), nullable=False)
+    assigned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+class Device(Base):
+    __tablename__ = "device"
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True)
+    residence_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("residence.id", ondelete="RESTRICT"), nullable=False)
+    type: Mapped[str] = mapped_column(device_type_enum, nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    mac: Mapped[str] = mapped_column(Text, nullable=False)
+    battery_percent: Mapped[Optional[int]] = mapped_column(SmallInteger)
+    created_by: Mapped[Optional[str]] = mapped_column(UUID(as_uuid=False), ForeignKey("user.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+class TaskCategory(Base):
+    __tablename__ = "task_category"
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True)
+    residence_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("residence.id", ondelete="RESTRICT"), nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    created_by: Mapped[Optional[str]] = mapped_column(UUID(as_uuid=False), ForeignKey("user.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+class TaskTemplate(Base):
+    __tablename__ = "task_template"
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True)
+    residence_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("residence.id", ondelete="RESTRICT"), nullable=False)
+    task_category_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("task_category.id", ondelete="RESTRICT"), nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    status1: Mapped[Optional[str]] = mapped_column(Text)
+    status2: Mapped[Optional[str]] = mapped_column(Text)
+    status3: Mapped[Optional[str]] = mapped_column(Text)
+    status4: Mapped[Optional[str]] = mapped_column(Text)
+    status5: Mapped[Optional[str]] = mapped_column(Text)
+    status6: Mapped[Optional[str]] = mapped_column(Text)
+    audio_phrase: Mapped[Optional[str]] = mapped_column(Text)
+    is_block: Mapped[Optional[bool]] = mapped_column(Boolean)
+    created_by: Mapped[Optional[str]] = mapped_column(UUID(as_uuid=False), ForeignKey("user.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+class TaskApplication(Base):
+    __tablename__ = "task_application"
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True)
+    residence_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("residence.id", ondelete="RESTRICT"), nullable=False)
+    resident_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("resident.id", ondelete="RESTRICT"), nullable=False)
+    task_template_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("task_template.id", ondelete="RESTRICT"), nullable=False)
+    applied_by: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("user.id"), nullable=False)
+    applied_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    selected_status_index: Mapped[Optional[int]] = mapped_column(SmallInteger)
+    selected_status_text: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+class Measurement(Base):
+    __tablename__ = "measurement"
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True)
+    residence_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("residence.id", ondelete="RESTRICT"), nullable=False)
+    resident_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("resident.id", ondelete="RESTRICT"), nullable=False)
+    recorded_by: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("user.id"), nullable=False)
+    source: Mapped[str] = mapped_column(measurement_source_enum, nullable=False)
+    device_id: Mapped[Optional[str]] = mapped_column(UUID(as_uuid=False), ForeignKey("device.id"))
+    type: Mapped[str] = mapped_column(measurement_type_enum, nullable=False)
+
+    systolic: Mapped[Optional[int]]
+    diastolic: Mapped[Optional[int]]
+    pulse_bpm: Mapped[Optional[int]]
+    spo2: Mapped[Optional[int]]
+    weight_kg: Mapped[Optional[float]]
+    temperature_c: Mapped[Optional[int]]
+
+    taken_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+class EventLog(Base):
+    __tablename__ = "event_log"
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    actor_user_id: Mapped[Optional[str]] = mapped_column(UUID(as_uuid=False), ForeignKey("user.id"))
+    residence_id: Mapped[Optional[str]] = mapped_column(UUID(as_uuid=False), ForeignKey("residence.id"))
+    entity: Mapped[str] = mapped_column(Text, nullable=False)
+    entity_id: Mapped[Optional[str]] = mapped_column(UUID(as_uuid=False))
+    action: Mapped[str] = mapped_column(Text, nullable=False)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    meta: Mapped[Optional[Dict]] = mapped_column(JSONB)
+import hashlib, jwt, datetime, bcrypt
+import uuid
+from app.config import settings
+
+def new_uuid() -> str:
+    """UUID v4 como string (compatible con columnas UUID-as-text)."""
+    return str(uuid.uuid4())
+
+def normalize_alias(alias: str) -> str:
+    return alias.strip().lower()
+
+def hash_alias(alias: str) -> str:
+    h = hashlib.new(settings.alias_hash_alg)
+    h.update(normalize_alias(alias).encode("utf-8"))
+    return h.hexdigest()
+
+def verify_password(plain: str, hashed: str) -> bool:
+    # hashed es bcrypt (formato $2a$...) compatible con bcrypt.checkpw
+    try:
+        return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+    except Exception:
+        return False
+
+def create_access_token(sub: str, role: str, expires_minutes: int = 120) -> str:
+    now = datetime.datetime.utcnow()
+    payload = {
+        "sub": sub,
+        "role": role,
+        "iat": now,
+        "exp": now + datetime.timedelta(minutes=expires_minutes),
+        "typ": "access",
+    }
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_alg)
+
+def decode_token(token: str) -> dict:
+    return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_alg])
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from app.config import settings
+import time
+import logging
+
+def setup_middlewares(app: FastAPI):
+    origins = [o.strip() for o in settings.cors_origins.split(",")]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins if origins != ["*"] else ["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    logger = logging.getLogger("uvicorn.error")
+
+    @app.middleware("http")
+    async def timing(request: Request, call_next):
+        start = time.time()
+        resp = await call_next(request)
+        dur = (time.time() - start) * 1000
+        logger.info("%s %s -> %s (%.1f ms)", request.method, request.url.path, resp.status_code, dur)
+        return resp
+
+
+# app/schemas.py
+from __future__ import annotations
+
+from typing import Optional, Literal, List
+from datetime import datetime, date
+from pydantic import BaseModel, ConfigDict, Field
+
+# =========================================================
+# ENUMS (deben coincidir con la BD)
+# =========================================================
+
+UserRole = Literal["superadmin", "manager", "professional"]
+
+ResidentStatus = Literal["active", "discharged", "deceased"]
+
+DeviceType = Literal["blood_pressure", "pulse_oximeter", "scale", "thermometer"]
+
+MeasurementSource = Literal["device", "voice", "manual"]
+MeasurementType   = Literal["bp", "spo2", "weight", "temperature"]
+
+
+# =========================================================
+# AUTH
+# =========================================================
+
+class LoginRequest(BaseModel):
+    alias: str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: Literal["bearer"] = "bearer"
+
+
+class Me(BaseModel):
+    id: str
+    role: UserRole
+
+
+# =========================================================
+# RESIDENCES
+# =========================================================
+
+class ResidenceCreate(BaseModel):
+    name: str
+    address: Optional[str] = None
+    # phone/email se guardan cifrados en modelo; aquí opcionales si tu endpoint los acepta
+    phone: Optional[str] = None
+    email: Optional[str] = None
+
+
+class ResidenceUpdate(BaseModel):
+    name: Optional[str] = None
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+
+
+class ResidenceOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    name: str
+    address: Optional[str] = None
+
+
+# =========================================================
+# ESTRUCTURA (Floor / Room / Bed)
+# =========================================================
+
+class FloorCreate(BaseModel):
+    name: str
+
+
+class FloorOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    residence_id: str
+    name: str
+
+
+class RoomCreate(BaseModel):
+    floor_id: str
+    name: str
+
+
+class RoomOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    residence_id: str
+    floor_id: str
+    name: str
+
+
+class BedCreate(BaseModel):
+    room_id: str
+    name: str
+
+
+class BedOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    residence_id: str
+    room_id: str
+    name: str
+
+
+# =========================================================
+# RESIDENTS
+# =========================================================
+
+class ResidentCreate(BaseModel):
+    full_name: str
+    birth_date: date
+    sex: Optional[str] = None
+    gender: Optional[str] = None
+    comments: Optional[str] = None
+    # status en alta: por defecto 'active'
+    status: ResidentStatus = "active"
+    # asignación opcional de cama (solo si activo)
+    bed_id: Optional[str] = None
+
+
+class ResidentUpdate(BaseModel):
+    full_name: Optional[str] = None
+    birth_date: Optional[date] = None
+    sex: Optional[str] = None
+    gender: Optional[str] = None
+    comments: Optional[str] = None
+    status: Optional[ResidentStatus] = None
+    bed_id: Optional[str] = None  # permitir cambiar cama desde aquí si tu router lo soporta
+
+
+class ResidentChangeBed(BaseModel):
+    new_bed_id: str
+    changed_at: Optional[datetime] = None  # opcional; si no viene, el backend pone now()
+
+
+class ResidentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    residence_id: str
+    full_name: str
+    birth_date: date
+    sex: Optional[str] = None
+    gender: Optional[str] = None
+    comments: Optional[str] = None
+    status: ResidentStatus
+    status_changed_at: Optional[datetime] = None
+    deleted_at: Optional[datetime] = None
+    bed_id: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+# =========================================================
+# TAGS
+# =========================================================
+
+class TagCreate(BaseModel):
+    name: str
+
+
+class TagUpdate(BaseModel):
+    name: Optional[str] = None
+
+
+class TagOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    name: str
+    created_at: datetime
+    updated_at: datetime
+    deleted_at: Optional[datetime] = None
+
+
+class ResidentTagAssign(BaseModel):
+    resident_id: str
+    tag_id: str
+
+
+# =========================================================
+# DEVICES
+# =========================================================
+
+class DeviceCreate(BaseModel):
+    type: DeviceType
+    name: str
+    mac: str
+    battery_percent: Optional[int] = Field(None, ge=0, le=100)
+
+
+class DeviceUpdate(BaseModel):
+    type: Optional[DeviceType] = None
+    name: Optional[str] = None
+    mac: Optional[str] = None
+    battery_percent: Optional[int] = Field(None, ge=0, le=100)
+
+
+class DeviceOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    residence_id: str
+    type: DeviceType
+    name: str
+    mac: str
+    battery_percent: Optional[int] = None
+    created_at: datetime
+    updated_at: datetime
+    deleted_at: Optional[datetime] = None
+
+
+# =========================================================
+# TASKS (Plantillas y Aplicaciones)
+# =========================================================
+
+class TaskCategoryCreate(BaseModel):
+    name: str
+
+
+class TaskCategoryUpdate(BaseModel):
+    name: Optional[str] = None
+
+
+class TaskCategoryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    residence_id: str
+    name: str
+    created_at: datetime
+    updated_at: datetime
+    deleted_at: Optional[datetime] = None
+
+
+class TaskTemplateCreate(BaseModel):
+    task_category_id: str
+    name: str
+    status1: Optional[str] = None
+    status2: Optional[str] = None
+    status3: Optional[str] = None
+    status4: Optional[str] = None
+    status5: Optional[str] = None
+    status6: Optional[str] = None
+    audio_phrase: Optional[str] = None
+    is_block: Optional[bool] = None
+
+
+class TaskTemplateUpdate(BaseModel):
+    task_category_id: Optional[str] = None
+    name: Optional[str] = None
+    status1: Optional[str] = None
+    status2: Optional[str] = None
+    status3: Optional[str] = None
+    status4: Optional[str] = None
+    status5: Optional[str] = None
+    status6: Optional[str] = None
+    audio_phrase: Optional[str] = None
+    is_block: Optional[bool] = None
+
+
+class TaskTemplateOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    residence_id: str
+    task_category_id: str
+    name: str
+    status1: Optional[str] = None
+    status2: Optional[str] = None
+    status3: Optional[str] = None
+    status4: Optional[str] = None
+    status5: Optional[str] = None
+    status6: Optional[str] = None
+    audio_phrase: Optional[str] = None
+    is_block: Optional[bool] = None
+    created_at: datetime
+    updated_at: datetime
+    deleted_at: Optional[datetime] = None
+
+
+class TaskApplicationCreate(BaseModel):
+    resident_id: str
+    task_template_id: str
+    # el backend rellenará selected_status_text si envías index
+    selected_status_index: Optional[int] = Field(None, ge=1, le=6)
+    selected_status_text: Optional[str] = None
+    applied_at: Optional[datetime] = None  # if None → now()
+
+
+class TaskApplicationUpdate(BaseModel):
+    selected_status_index: Optional[int] = Field(None, ge=1, le=6)
+    selected_status_text: Optional[str] = None
+    applied_at: Optional[datetime] = None
+
+
+class TaskApplicationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    residence_id: str
+    resident_id: str
+    task_template_id: str
+    applied_by: str
+    applied_at: datetime
+    selected_status_index: Optional[int] = None
+    selected_status_text: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    deleted_at: Optional[datetime] = None
+
+
+# =========================================================
+# MEASUREMENTS
+# =========================================================
+
+class MeasurementCreate(BaseModel):
+    """
+    Crear medición. El backend valida coherencia según 'type'.
+    - bp  : requiere systolic y diastolic; pulse_bpm opcional
+    - spo2: requiere spo2; pulse_bpm opcional
+    - weight: requiere weight_kg (float, 1 decimal permitido)
+    - temperature: requiere temperature_c (int)
+    """
+    resident_id: str
+    source: MeasurementSource
+    type: MeasurementType
+    taken_at: datetime
+
+    device_id: Optional[str] = None
+
+    systolic: Optional[int] = None
+    diastolic: Optional[int] = None
+    pulse_bpm: Optional[int] = None
+    spo2: Optional[int] = None
+    weight_kg: Optional[float] = None
+    temperature_c: Optional[int] = None
+
+
+class MeasurementUpdate(BaseModel):
+    """
+    Actualizar medición: todos los campos opcionales.
+    """
+    source: Optional[MeasurementSource] = None
+    type: Optional[MeasurementType] = None
+    taken_at: Optional[datetime] = None
+
+    device_id: Optional[str] = None
+
+    systolic: Optional[int] = None
+    diastolic: Optional[int] = None
+    pulse_bpm: Optional[int] = None
+    spo2: Optional[int] = None
+    weight_kg: Optional[float] = None
+    temperature_c: Optional[int] = None
+
+
+class MeasurementOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    residence_id: str
+    resident_id: str
+    recorded_by: str
+    source: MeasurementSource
+    device_id: Optional[str] = None
+    type: MeasurementType
+
+    systolic: Optional[int] = None
+    diastolic: Optional[int] = None
+    pulse_bpm: Optional[int] = None
+    spo2: Optional[int] = None
+    weight_kg: Optional[float] = None
+    temperature_c: Optional[int] = None
+
+    taken_at: datetime
+    created_at: datetime
+    updated_at: datetime
+    deleted_at: Optional[datetime] = None
+import uvicorn
+from fastapi import FastAPI, Depends
+from app.middlewares import setup_middlewares
+from app.deps import get_current_user
+from app.routers import auth, residences, structure, residents, tags, devices, tasks, measurements
+
+app = FastAPI(title="Residences API", version="1.0.0")
+setup_middlewares(app)
+
+app.include_router(auth.router)
+app.include_router(residences.router)
+app.include_router(structure.router)
+app.include_router(residents.router)
+app.include_router(tags.router)
+app.include_router(devices.router)
+app.include_router(tasks.router)
+app.include_router(measurements.router)
+
+
+@app.get("/")
+def root():
+    return {"ok": True, "docs": "/docs"}
+
+
+@app.get("/auth/me")
+async def me(user=Depends(get_current_user)):
+    return user
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", reload=True)
+
+
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+SQLAlchemy[asyncio]==2.0.32
+asyncpg==0.29.0
+pydantic==2.11.7
+python-dotenv==1.0.1
+bcrypt==4.2.0
+PyJWT==2.9.0
+python-multipart==0.0.9
