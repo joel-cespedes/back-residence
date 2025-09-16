@@ -440,6 +440,30 @@ class TaskStats(BaseModel):
     by_category: Dict[str, Dict[str, int]]
     last_30_days: int
 
+class TaskCategoryWithCount(BaseModel):
+    id: str
+    name: str
+    description: str | None = None
+    icon: str | None = None
+    color: str | None = None
+    residence_id: str
+    residence_name: str
+    task_count: int
+    active_tasks: int
+    completed_tasks: int
+
+class MonthlyResidentData(BaseModel):
+    month: str
+    value: int
+
+class NewResidentStats(BaseModel):
+    current_year: int
+    current_year_residents: int
+    previous_year_residents: int
+    growth_percentage: float
+    total_residents: int
+    monthly_data: List[MonthlyResidentData]
+
 class DeviceStats(BaseModel):
     total_devices: int
     by_type: Dict[str, int]

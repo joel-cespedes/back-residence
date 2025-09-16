@@ -24,4 +24,3 @@ def setup_middlewares(app: FastAPI):
         logger.info("%s %s -> %s (%.1f ms)", request.method, request.url.path, resp.status_code, dur)
         return resp
 
-

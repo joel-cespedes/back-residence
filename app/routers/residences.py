@@ -61,8 +61,8 @@ async def paginate_query(
             query = query.where(Residence.created_at >= filter_params.date_from)
         if filter_params.date_to:
             query = query.where(Residence.created_at <= filter_params.date_to)
-        if filter_params.search:
-            search_term = f"%{filter_params.search}%"
+        if getattr(filter_params, 'search', None):
+            search_term = f"%{getattr(filter_params, 'search', '')}%"
             query = query.where(or_(
                 Residence.name.ilike(search_term),
                 Residence.address.ilike(search_term)
