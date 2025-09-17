@@ -73,6 +73,7 @@ class ResidentStats(BaseModel):
         with_bed (int): Residentes con cama asignada
         without_bed (int): Residentes sin cama asignada
         new_residents (int): Nuevos residentes en el período seleccionado
+        change_percentage (float): Porcentaje de cambio respecto al período anterior
     """
     total: int
     active: int
@@ -81,6 +82,7 @@ class ResidentStats(BaseModel):
     with_bed: int
     without_bed: int
     new_residents: int = 0
+    change_percentage: float = 0.0
 
 
 class MonthlyResidentData(BaseModel):
@@ -129,12 +131,14 @@ class MeasurementStats(BaseModel):
         by_source (Dict[str, int]): Mediciones por fuente
         last_30_days (int): Mediciones en los últimos 30 días
         trend (Literal['increasing', 'decreasing', 'stable']): Tendencia
+        change_percentage (float): Porcentaje de cambio respecto al período anterior
     """
     total_measurements: int
     by_type: Dict[str, int]
     by_source: Dict[str, int]
     last_30_days: int
     trend: Literal['increasing', 'decreasing', 'stable']
+    change_percentage: float = 0.0
 
 
 # =========================================================
@@ -150,11 +154,13 @@ class TaskStats(BaseModel):
         completion_rate (float): Tasa de completitud
         by_category (Dict[str, Dict[str, int]]): Datos por categoría
         last_30_days (int): Aplicaciones en los últimos 30 días
+        change_percentage (float): Porcentaje de cambio respecto al período anterior
     """
     total_applications: int
     completion_rate: float
     by_category: Dict[str, Dict[str, int]]
     last_30_days: int
+    change_percentage: float = 0.0
 
 
 class TaskCategoryWithCount(BaseModel):
@@ -199,12 +205,14 @@ class DeviceStats(BaseModel):
         low_battery (int): Dispositivos con batería baja
         average_battery (float): Porcentaje promedio de batería
         new_devices (int): Nuevos dispositivos en el período seleccionado
+        change_percentage (float): Porcentaje de cambio respecto al período anterior
     """
     total_devices: int
     by_type: Dict[str, int]
     low_battery: int
     average_battery: float
     new_devices: int = 0
+    change_percentage: float = 0.0
 
 
 # =========================================================

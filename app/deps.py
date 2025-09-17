@@ -16,8 +16,11 @@ async def get_current_user(creds: HTTPAuthorizationCredentials = Depends(bearer)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
     try:
         payload = decode_token(creds.credentials)
-        # payload contiene "sub" y "role"
-        return {"id": payload["sub"], "role": payload["role"]}
+        # payload contiene "sub", "role" y "alias"
+        result = {"id": payload["sub"], "role": payload["role"]}
+        if "alias" in payload:
+            result["alias"] = payload["alias"]
+        return result
     except Exception:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 

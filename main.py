@@ -23,11 +23,8 @@ def root():
     return {"ok": True, "docs": "/docs"}
 
 
-@app.get("/auth/me")
-async def me(user=Depends(get_current_user)):
-    return user
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", reload=True)
+    uvicorn.run("main:app", reload=True, port=8001)
 
 

@@ -42,6 +42,8 @@ class Me(BaseModel):
     Attributes:
         id (str): Identificador único del usuario
         role (str): Rol del usuario en el sistema
+        alias (str): Alias o nombre de usuario del usuario
     """
     id: str
     role: str
+    alias: str | None = None

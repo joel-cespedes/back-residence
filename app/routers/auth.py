@@ -30,9 +30,11 @@ async def login(
             detail="Invalid credentials",
         )
 
-    token = create_access_token(sub=str(user.id), role=user.role)
+    token = create_access_token(sub=str(user.id), role=user.role, alias=data.alias)
     return TokenResponse(access_token=token)
 
 @router.get("/me", response_model=Me)
 async def me(current = Depends(get_current_user)):
-    return Me(id=current["id"], role=current["role"])
+    # Get alias from the JWT token (stored during login)
+    alias = current.get("alias", None)
+    return Me(id=current["id"], role=current["role"], alias=alias)

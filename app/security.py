@@ -21,7 +21,7 @@ def verify_password(plain: str, hashed: str) -> bool:
     except Exception:
         return False
 
-def create_access_token(sub: str, role: str, expires_minutes: int = 120) -> str:
+def create_access_token(sub: str, role: str, expires_minutes: int = 120, alias: str = None) -> str:
     now = datetime.datetime.utcnow()
     payload = {
         "sub": sub,
@@ -30,7 +30,22 @@ def create_access_token(sub: str, role: str, expires_minutes: int = 120) -> str:
         "exp": now + datetime.timedelta(minutes=expires_minutes),
         "typ": "access",
     }
+    if alias:
+        payload["alias"] = alias
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_alg)
 
 def decode_token(token: str) -> dict:
     return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_alg])
+
+def decrypt_data(encrypted_data: bytes) -> str:
+    """
+    Función temporal para 'desencriptar' datos.
+    NOTA: Actualmente los datos no están realmente encriptados, solo hasheados.
+    Esto debería implementarse con una encriptación real como Fernet.
+    """
+    try:
+        # Por ahora, intentar decodificar como UTF-8 si es un hash
+        return encrypted_data.decode('utf-8')
+    except (UnicodeDecodeError, AttributeError):
+        # Si falla, devolver una representación segura
+        return str(encrypted_data)

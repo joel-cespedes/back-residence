@@ -102,6 +102,24 @@ async def get_resident_stats(db: AsyncSession, residence_id: str, days: int = 30
         )
     )
 
+    # Calculate change percentage - compare with previous period
+    previous_days_ago = datetime.utcnow() - timedelta(days=days * 2)
+    previous_period_result = await db.scalar(
+        select(func.count(Resident.id)).where(
+            Resident.residence_id == residence_id,
+            Resident.created_at >= previous_days_ago,
+            Resident.created_at < days_ago,
+            Resident.deleted_at.is_(None)
+        )
+    )
+
+    # Calculate percentage change
+    change_percentage = 0.0
+    if previous_period_result and previous_period_result > 0:
+        change_percentage = ((new_residents_result or 0) - previous_period_result) / previous_period_result * 100
+    elif new_residents_result and new_residents_result > 0:
+        change_percentage = 100.0  # No data in previous period, but we have data now
+
     return ResidentStats(
         total=total_result or 0,
         active=active_result or 0,
@@ -109,7 +127,8 @@ async def get_resident_stats(db: AsyncSession, residence_id: str, days: int = 30
         deceased=deceased_result or 0,
         with_bed=with_bed_result or 0,
         without_bed=without_bed_result or 0,
-        new_residents=new_residents_result or 0
+        new_residents=new_residents_result or 0,
+        change_percentage=round(change_percentage, 1)
     )
 
 async def get_measurement_stats(db: AsyncSession, residence_id: str, days: int = 30) -> MeasurementStats:
@@ -221,12 +240,20 @@ async def get_measurement_stats(db: AsyncSession, residence_id: str, days: int =
         elif last_period_result < previous_period_result * 0.9:
             trend = 'decreasing'
 
+    # Calculate percentage change
+    change_percentage = 0.0
+    if previous_period_result and previous_period_result > 0:
+        change_percentage = ((last_period_result or 0) - previous_period_result) / previous_period_result * 100
+    elif last_period_result and last_period_result > 0:
+        change_percentage = 100.0  # No data in previous period, but we have data now
+
     return MeasurementStats(
         total_measurements=total_result or 0,
         by_type=by_type,
         by_source=by_source,
         last_30_days=last_period_result or 0,
-        trend=trend
+        trend=trend,
+        change_percentage=round(change_percentage, 1)
     )
 
 async def get_task_stats(db: AsyncSession, residence_id: str, days: int = 30) -> TaskStats:
@@ -282,11 +309,30 @@ async def get_task_stats(db: AsyncSession, residence_id: str, days: int = 30) ->
         )
     )
 
+    # Calculate change percentage - compare with previous period
+    previous_days_ago = datetime.utcnow() - timedelta(days=days * 2)
+    previous_period_result = await db.scalar(
+        select(func.count(TaskApplication.id)).where(
+            TaskApplication.residence_id == residence_id,
+            TaskApplication.applied_at >= previous_days_ago,
+            TaskApplication.applied_at < days_ago,
+            TaskApplication.deleted_at.is_(None)
+        )
+    )
+
+    # Calculate percentage change
+    change_percentage = 0.0
+    if previous_period_result and previous_period_result > 0:
+        change_percentage = ((last_period_result or 0) - previous_period_result) / previous_period_result * 100
+    elif last_period_result and last_period_result > 0:
+        change_percentage = 100.0  # No data in previous period, but we have data now
+
     return TaskStats(
         total_applications=total_result or 0,
         completion_rate=completion_rate,
         by_category=by_category,
-        last_30_days=last_period_result or 0
+        last_30_days=last_period_result or 0,
+        change_percentage=round(change_percentage, 1)
     )
 
 async def get_device_stats(db: AsyncSession, residence_id: str, days: int = 30) -> DeviceStats:
@@ -310,6 +356,24 @@ async def get_device_stats(db: AsyncSession, residence_id: str, days: int = 30) 
             Device.deleted_at.is_(None)
         )
     )
+
+    # Calculate change percentage - compare with previous period
+    previous_days_ago = datetime.utcnow() - timedelta(days=days * 2)
+    previous_period_result = await db.scalar(
+        select(func.count(Device.id)).where(
+            Device.residence_id == residence_id,
+            Device.created_at >= previous_days_ago,
+            Device.created_at < days_ago,
+            Device.deleted_at.is_(None)
+        )
+    )
+
+    # Calculate percentage change
+    change_percentage = 0.0
+    if previous_period_result and previous_period_result > 0:
+        change_percentage = ((new_devices_result or 0) - previous_period_result) / previous_period_result * 100
+    elif new_devices_result and new_devices_result > 0:
+        change_percentage = 100.0  # No data in previous period, but we have data now
 
     # By type
     bp_device_result = await db.scalar(
@@ -374,7 +438,8 @@ async def get_device_stats(db: AsyncSession, residence_id: str, days: int = 30) 
         by_type=by_type,
         low_battery=low_battery_result or 0,
         average_battery=float(avg_battery_result or 0),
-        new_devices=new_devices_result or 0
+        new_devices=new_devices_result or 0,
+        change_percentage=round(change_percentage, 1)
     )
 
 async def get_new_resident_stats(db: AsyncSession, residence_id: str) -> NewResidentStats:
@@ -626,13 +691,27 @@ async def get_dashboard_data(
     yearly_comparison = await get_yearly_comparison(db, residence_id)
     recent_activity = await get_recent_activity(db, residence_id, days)
 
-    # Create metrics cards
+    # Create metrics cards with dynamic change percentages
+    def format_change_percentage(percentage: float) -> tuple[str, str]:
+        """Format percentage change and determine if it's positive or negative"""
+        if percentage > 0:
+            return f"+{percentage:.1f}%", "positive"
+        elif percentage < 0:
+            return f"{percentage:.1f}%", "negative"
+        else:
+            return "0%", "positive"
+
+    resident_change, resident_change_type = format_change_percentage(resident_stats.change_percentage)
+    device_change, device_change_type = format_change_percentage(device_stats.change_percentage)
+    measurement_change, measurement_change_type = format_change_percentage(measurement_stats.change_percentage)
+    task_change, task_change_type = format_change_percentage(task_stats.change_percentage)
+
     metrics = [
         DashboardMetric(
             title="Residentes",
             value=str(resident_stats.new_residents),
-            change="+5%",
-            changeType="positive",
+            change=resident_change,
+            changeType=resident_change_type,
             icon="people",
             color="primary",
             colorIcon="btn_lightblue"
@@ -640,8 +719,8 @@ async def get_dashboard_data(
         DashboardMetric(
             title="Dispositivos",
             value=str(device_stats.new_devices),
-            change="+2%",
-            changeType="positive",
+            change=device_change,
+            changeType=device_change_type,
             icon="devices",
             color="success",
             colorIcon="btn_green"
@@ -649,8 +728,8 @@ async def get_dashboard_data(
         DashboardMetric(
             title="Mediciones",
             value=str(measurement_stats.last_30_days),
-            change="+12%",
-            changeType="positive",
+            change=measurement_change,
+            changeType=measurement_change_type,
             icon="monitoring",
             color="warning",
             colorIcon="btn_orange"
@@ -658,8 +737,8 @@ async def get_dashboard_data(
         DashboardMetric(
             title="Tareas",
             value=str(task_stats.last_30_days),
-            change="-3%",
-            changeType="negative",
+            change=task_change,
+            changeType=task_change_type,
             icon="task_alt",
             color="info",
             colorIcon="btn_purple"
