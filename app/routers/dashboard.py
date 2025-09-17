@@ -40,9 +40,12 @@ async def apply_residence_context(db: AsyncSession, current: dict, residence_id:
     elif current["role"] != "superadmin":
         raise HTTPException(status_code=400, detail="Residence ID required for non-superadmin users")
 
-async def get_resident_stats(db: AsyncSession, residence_id: str) -> ResidentStats:
+async def get_resident_stats(db: AsyncSession, residence_id: str, days: int = 30) -> ResidentStats:
     """Get resident statistics"""
-    # Total residents
+    # Calculate date range for filtering
+    days_ago = datetime.utcnow() - timedelta(days=days)
+
+    # Total residents (all time)
     total_result = await db.scalar(
         select(func.count(Resident.id)).where(
             Resident.residence_id == residence_id,
@@ -90,13 +93,23 @@ async def get_resident_stats(db: AsyncSession, residence_id: str) -> ResidentSta
     # Residents without bed
     without_bed_result = active_result - with_bed_result if active_result else 0
 
+    # New residents in the selected time period
+    new_residents_result = await db.scalar(
+        select(func.count(Resident.id)).where(
+            Resident.residence_id == residence_id,
+            Resident.created_at >= days_ago,
+            Resident.deleted_at.is_(None)
+        )
+    )
+
     return ResidentStats(
         total=total_result or 0,
         active=active_result or 0,
         discharged=discharged_result or 0,
         deceased=deceased_result or 0,
         with_bed=with_bed_result or 0,
-        without_bed=without_bed_result or 0
+        without_bed=without_bed_result or 0,
+        new_residents=new_residents_result or 0
     )
 
 async def get_measurement_stats(db: AsyncSession, residence_id: str, days: int = 30) -> MeasurementStats:
@@ -276,12 +289,24 @@ async def get_task_stats(db: AsyncSession, residence_id: str, days: int = 30) ->
         last_30_days=last_period_result or 0
     )
 
-async def get_device_stats(db: AsyncSession, residence_id: str) -> DeviceStats:
+async def get_device_stats(db: AsyncSession, residence_id: str, days: int = 30) -> DeviceStats:
     """Get device statistics"""
-    # Total devices
+    # Calculate date range for filtering
+    days_ago = datetime.utcnow() - timedelta(days=days)
+    """Get device statistics"""
+    # Total devices (all time)
     total_result = await db.scalar(
         select(func.count(Device.id)).where(
             Device.residence_id == residence_id,
+            Device.deleted_at.is_(None)
+        )
+    )
+
+    # New devices in the selected time period
+    new_devices_result = await db.scalar(
+        select(func.count(Device.id)).where(
+            Device.residence_id == residence_id,
+            Device.created_at >= days_ago,
             Device.deleted_at.is_(None)
         )
     )
@@ -348,7 +373,8 @@ async def get_device_stats(db: AsyncSession, residence_id: str) -> DeviceStats:
         total_devices=total_result or 0,
         by_type=by_type,
         low_battery=low_battery_result or 0,
-        average_battery=float(avg_battery_result or 0)
+        average_battery=float(avg_battery_result or 0),
+        new_devices=new_devices_result or 0
     )
 
 async def get_new_resident_stats(db: AsyncSession, residence_id: str) -> NewResidentStats:
@@ -565,7 +591,7 @@ async def get_dashboard_data(
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
     residence_id: str | None = Header(None, alias="X-Residence-Id"),
-    time_filter: str = Query("month", regex="^(week|month|year)$", description="Time filter: week, month, or year"),
+    time_filter: str = Query("year", regex="^(week|month|year)$", description="Time filter: week, month, or year"),
 ):
     """Get complete dashboard data"""
     await apply_residence_context(db, current, residence_id)
@@ -593,50 +619,50 @@ async def get_dashboard_data(
     days = days_map[time_filter]
 
     # Get all statistics
-    resident_stats = await get_resident_stats(db, residence_id)
+    resident_stats = await get_resident_stats(db, residence_id, days)
     measurement_stats = await get_measurement_stats(db, residence_id, days)
     task_stats = await get_task_stats(db, residence_id, days)
-    device_stats = await get_device_stats(db, residence_id)
+    device_stats = await get_device_stats(db, residence_id, days)
     yearly_comparison = await get_yearly_comparison(db, residence_id)
     recent_activity = await get_recent_activity(db, residence_id, days)
 
     # Create metrics cards
     metrics = [
         DashboardMetric(
-            title="Total Residents",
-            value=str(resident_stats.total),
+            title="Residentes",
+            value=str(resident_stats.new_residents),
             change="+5%",
             changeType="positive",
             icon="people",
             color="primary",
-            colorIcon="bg-blue-500"
+            colorIcon="btn_lightblue"
         ),
         DashboardMetric(
-            title="Active Devices",
-            value=str(device_stats.total_devices),
+            title="Dispositivos",
+            value=str(device_stats.new_devices),
             change="+2%",
             changeType="positive",
             icon="devices",
             color="success",
-            colorIcon="bg-green-500"
+            colorIcon="btn_green"
         ),
         DashboardMetric(
-            title="Measurements",
-            value=str(measurement_stats.total_measurements),
+            title="Mediciones",
+            value=str(measurement_stats.last_30_days),
             change="+12%",
             changeType="positive",
             icon="monitoring",
             color="warning",
-            colorIcon="bg-yellow-500"
+            colorIcon="btn_orange"
         ),
         DashboardMetric(
-            title="Task Completion",
-            value=f"{task_stats.completion_rate:.1f}%",
+            title="Tareas",
+            value=str(task_stats.last_30_days),
             change="-3%",
             changeType="negative",
             icon="task_alt",
             color="info",
-            colorIcon="bg-purple-500"
+            colorIcon="btn_purple"
         )
     ]
 
@@ -657,19 +683,27 @@ async def get_residents_stats(
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
     residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    time_filter: str = Query("year", regex="^(week|month|year)$", description="Time filter: week, month, or year"),
 ):
     """Get resident statistics only"""
     await apply_residence_context(db, current, residence_id)
     if not residence_id:
         raise HTTPException(status_code=400, detail="Residence ID is required")
-    return await get_resident_stats(db, residence_id)
+    # Convert time_filter to days
+    days_map = {
+        "week": 7,
+        "month": 30,
+        "year": 365
+    }
+    days = days_map[time_filter]
+    return await get_resident_stats(db, residence_id, days)
 
 @router.get("/measurements/stats", response_model=MeasurementStats)
 async def get_measurements_stats(
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
     residence_id: str | None = Header(None, alias="X-Residence-Id"),
-    time_filter: str = Query("month", regex="^(week|month|year)$", description="Time filter: week, month, or year"),
+    time_filter: str = Query("year", regex="^(week|month|year)$", description="Time filter: week, month, or year"),
 ):
     """Get measurement statistics only"""
     await apply_residence_context(db, current, residence_id)
@@ -691,7 +725,7 @@ async def get_tasks_stats(
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
     residence_id: str | None = Header(None, alias="X-Residence-Id"),
-    time_filter: str = Query("month", regex="^(week|month|year)$", description="Time filter: week, month, or year"),
+    time_filter: str = Query("year", regex="^(week|month|year)$", description="Time filter: week, month, or year"),
 ):
     """Get task statistics only"""
     await apply_residence_context(db, current, residence_id)
@@ -713,12 +747,20 @@ async def get_devices_stats(
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
     residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    time_filter: str = Query("year", regex="^(week|month|year)$", description="Time filter: week, month, or year"),
 ):
     """Get device statistics only"""
     await apply_residence_context(db, current, residence_id)
     if not residence_id:
         raise HTTPException(status_code=400, detail="Residence ID is required")
-    return await get_device_stats(db, residence_id)
+    # Convert time_filter to days
+    days_map = {
+        "week": 7,
+        "month": 30,
+        "year": 365
+    }
+    days = days_map[time_filter]
+    return await get_device_stats(db, residence_id, days)
 
 @router.get("/new-residents/stats", response_model=NewResidentStats)
 async def get_new_residents_stats(

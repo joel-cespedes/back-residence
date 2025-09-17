@@ -6,7 +6,7 @@ para el sistema de gestión de residencias
 
 import asyncio
 import random
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from typing import List
 import uuid
 
@@ -33,10 +33,10 @@ NOMBRES_RESIDENTES = [
 APELLIDOS_COMUNES = ["García", "Rodríguez", "Martínez", "López", "Sánchez", "Pérez", "Gómez", "Fernández"]
 
 NOMBRES_DISPOSITIVOS = {
-    "blood_pressure": ["BP Monitor 001", "BP Monitor 002", "BP Monitor 003", "BP Pro Max"],
-    "pulse_oximeter": ["OxiMeter A1", "OxiMeter B2", "Pulse Check Pro", "OxiMax Elite"],
-    "scale": ["Smart Scale 1", "Digital Weight Pro", "Health Scale X1", "Precision Scale"],
-    "thermometer": ["TempCheck Pro", "Digital Therm 1", "Infrared Temp Pro", "Smart Thermometer"]
+    "blood_pressure": "Tensiómetro",
+    "pulse_oximeter": "Pulsioxímetro",
+    "scale": "Báscula",
+    "thermometer": "Termómetro"
 }
 
 CATEGORIAS_TAREAS = [
@@ -76,7 +76,7 @@ TAGS_RESIDENTES = [
 class DataSeeder:
     def __init__(self, session: AsyncSession):
         self.session = session
-        self.fecha_inicio = datetime.now() - timedelta(days=730)  # 2 años atrás
+        self.fecha_inicio = datetime.now(timezone.utc) - timedelta(days=730)  # 2 años atrás
 
     async def seed_all(self):
         """Ejecuta todo el proceso de seeding"""
@@ -85,38 +85,68 @@ class DataSeeder:
         # 1. Crear usuarios base
         print("👥 Creando usuarios...")
         superadmin = await self.create_user("superadmin", "admin123", "superadmin")
-        manager1 = await self.create_user("manager1", "manager123", "manager")
-        manager2 = await self.create_user("manager2", "manager123", "manager")
-        prof1 = await self.create_user("prof1", "prof123", "professional")
-        prof2 = await self.create_user("prof2", "prof123", "professional")
-        prof3 = await self.create_user("prof3", "prof123", "professional")
+
+        # Crear gestores secuenciales (20 gestores para 100 residencias)
+        managers = []
+        for i in range(1, 21):
+            manager = await self.create_user(f"gestor{i}", "manager123", "manager")
+            managers.append(manager)
+
+        # Crear profesionales secuenciales (50 profesionales)
+        professionals = []
+        for i in range(1, 51):
+            prof = await self.create_user(f"profesional{i}", "prof123", "professional")
+            professionals.append(prof)
 
         # Establecer contexto de usuario para los triggers
         await self.set_user_context(superadmin)
 
         # 2. Crear residencias
         print("🏢 Creando residencias...")
-        res1 = await self.create_residence("Residencia Principal", "Calle Mayor 123", superadmin)
-        res2 = await self.create_residence("Residencia Norte", "Avenida Libertad 456", superadmin)
+        residences = []
 
-        # 3. Asignar usuarios a residencias
-        print("🔗 Asignando usuarios a residencias...")
-        await self.assign_user_to_residence(manager1, res1)
-        await self.assign_user_to_residence(manager2, res2)
-        await self.assign_user_to_residence(prof1, res1)
-        await self.assign_user_to_residence(prof2, res1)
-        await self.assign_user_to_residence(prof3, res2)
+        # Crear 100 residencias
+        for i in range(1, 101):
+            address = f"Calle Residencia {i}, {random.randint(1, 999)}"
+            residence = await self.create_residence(f"Residencia {i}", address, superadmin)
+            residences.append(residence)
+
+            # Asignar gestor cíclicamente (5 residencias por gestor)
+            manager = managers[(i-1) % len(managers)]
+            await self.assign_user_to_residence(manager, residence)
+
+        # 3. Asignar profesionales a residencias
+        print("🔗 Asignando profesionales a residencias...")
+        for i, professional in enumerate(professionals):
+            # Asignar 2-3 residencias por profesional
+            num_residences = random.randint(2, 3)
+            start_idx = (i * 2) % len(residences)
+            for j in range(num_residences):
+                residence_idx = (start_idx + j) % len(residences)
+                await self.assign_user_to_residence(professional, residences[residence_idx])
 
         # 4. Crear estructura física
         print("🏗️ Creando estructura física...")
-        floors_res1 = await self.create_floors(res1, 3)
-        floors_res2 = await self.create_floors(res2, 2)
+        all_floors = []
+        all_rooms = []
+        all_beds = []
 
-        rooms_res1 = await self.create_rooms_for_floors(floors_res1, 4)
-        rooms_res2 = await self.create_rooms_for_floors(floors_res2, 3)
+        # Para cada residencia, crear estructura física
+        for i, residence in enumerate(residences):
+            # Varía el número de pisos entre 2 y 5
+            num_floors = random.randint(2, 5)
+            floors = await self.create_floors(residence, num_floors)
+            all_floors.extend(floors)
 
-        beds_res1 = await self.create_beds_for_rooms(rooms_res1, 2)
-        beds_res2 = await self.create_beds_for_rooms(rooms_res2, 2)
+            # Varía el número de habitaciones por piso entre 3 y 8
+            rooms_per_floor = random.randint(3, 8)
+            rooms = await self.create_rooms_for_floors(floors, rooms_per_floor)
+            all_rooms.extend(rooms)
+
+            # Varía el número de camas por habitación entre 1 y 4
+            beds_per_room = random.randint(1, 4)
+            beds = await self.create_beds_for_rooms(rooms, beds_per_room)
+            all_beds.extend(beds)
 
         # 5. Crear tags
         print("🏷️ Creando tags...")
@@ -124,35 +154,43 @@ class DataSeeder:
 
         # 6. Crear residentes
         print("👴 Creando residentes...")
-        residentes_res1 = await self.create_residents(res1, beds_res1, 15, tags, superadmin)
-        residentes_res2 = await self.create_residents(res2, beds_res2, 10, tags, superadmin)
+        all_residents = []
+        all_devices = []
+        all_task_systems = []
 
-        # 7. Crear dispositivos
-        print("📱 Creando dispositivos...")
-        print(f"Superadmin ID: {superadmin.id}, type: {type(superadmin.id)}")
-        dispositivos_res1 = await self.create_devices(res1, 8, superadmin)
-        dispositivos_res2 = await self.create_devices(res2, 5, superadmin)
+        for i, residence in enumerate(residences):
+            # Asignar camas para esta residencia
+            residence_beds = [bed for bed in all_beds if bed.residence_id == residence.id]
 
-        # 8. Crear categorías y templates de tareas
-        print("📋 Creando sistema de tareas...")
-        tareas_res1 = await self.create_task_system(res1, superadmin)
-        tareas_res2 = await self.create_task_system(res2, superadmin)
+            # Varía el número de residentes (50-90% de ocupación)
+            max_residents = len(residence_beds)
+            num_residents = random.randint(int(max_residents * 0.5), int(max_residents * 0.9))
 
-        # 9. Crear mediciones históricas
+            if num_residents > 0:
+                residents = await self.create_residents(residence, residence_beds[:num_residents], num_residents, tags, superadmin)
+                all_residents.extend(residents)
+
+            # Crear dispositivos (1-3 dispositivos por residencia)
+            num_devices = random.randint(1, 3)
+            devices = await self.create_devices(residence, num_devices, superadmin)
+            all_devices.extend(devices)
+
+            # Crear sistema de tareas
+            task_system = await self.create_task_system(residence, superadmin)
+            all_task_systems.extend(task_system)
+
+        # 7. Crear mediciones históricas
         print("📊 Creando mediciones históricas...")
-        await self.create_historical_measurements(residentes_res1 + residentes_res2,
-                                                 dispositivos_res1 + dispositivos_res2,
-                                                 [prof1, prof2, prof3])
+        await self.create_historical_measurements(all_residents, all_devices, professionals)
 
-        # 10. Crear aplicaciones de tareas
+        # 8. Crear aplicaciones de tareas
         print("✅ Creando aplicaciones de tareas...")
-        await self.create_task_applications(residentes_res1 + residentes_res2,
-                                           tareas_res1 + tareas_res2,
-                                           [manager1, manager2, prof1, prof2, prof3])
+        all_staff = managers + professionals
+        await self.create_task_applications(all_residents, all_task_systems, all_staff)
 
-        # 11. Simular cambios de estado de residentes para activar triggers
+        # 9. Simular cambios de estado de residentes para activar triggers
         print("🔄 Simulando cambios de estado...")
-        await self.simulate_resident_status_changes(residentes_res1 + residentes_res2, superadmin)
+        await self.simulate_resident_status_changes(all_residents, superadmin)
 
         print("✅ Seeding completado exitosamente!")
 
@@ -218,12 +256,13 @@ class DataSeeder:
         """Crea habitaciones para los pisos"""
         rooms = []
         for floor in floors:
+            residence_num = floor.name.split()[-1]  # Extraer número del piso
             for i in range(1, rooms_per_floor + 1):
                 room = Room(
                     id=str(uuid.uuid4()),
                     residence_id=floor.residence_id,
                     floor_id=floor.id,
-                    name=f"Habitación {floor.name.split()[-1]}{i:02d}"
+                    name=f"Habitación {residence_num}{i:02d}"
                 )
                 self.session.add(room)
                 rooms.append(room)
@@ -234,12 +273,13 @@ class DataSeeder:
         """Crea camas para las habitaciones"""
         beds = []
         for room in rooms:
+            room_num = room.name.split()[-1]  # Extraer número de habitación
             for i in range(1, beds_per_room + 1):
                 bed = Bed(
                     id=str(uuid.uuid4()),
                     residence_id=room.residence_id,
                     room_id=room.id,
-                    name=f"Cama {i}"
+                    name=f"Cama {room_num}-{i:01d}"
                 )
                 self.session.add(bed)
                 beds.append(bed)
@@ -271,12 +311,14 @@ class DataSeeder:
         for i in range(min(count, len(available_beds))):
             # Generar fecha de nacimiento realista (65-95 años)
             age = random.randint(65, 95)
-            birth_year = datetime.now().year - age
+            birth_year = datetime.now(timezone.utc).year - age
             birth_date = date(birth_year, random.randint(1, 12), random.randint(1, 28))
 
             # Generar nombre completo
             full_name = random.choice(NOMBRES_RESIDENTES)
 
+            # Create resident with random creation date over the past year
+            created_at = datetime.now(timezone.utc) - timedelta(days=random.randint(0, 365))
             resident = Resident(
                 id=str(uuid.uuid4()),
                 residence_id=residence.id,
@@ -284,10 +326,11 @@ class DataSeeder:
                 birth_date=birth_date,
                 sex=random.choice(["Masculino", "Femenino"]),
                 gender=random.choice(["Hombre", "Mujer", "Otro"]),
-                comments=f"Residente creado automáticamente el {datetime.now().strftime('%Y-%m-%d')}",
+                comments=f"Residente creado automáticamente el {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
                 status=random.choice(["active", "active", "active"]),  # Mayormente activos
                 bed_id=available_beds[i].id if random.random() > 0.1 else None,  # 90% con cama
                 created_by=created_by.id,
+                created_at=created_at,
             )
             self.session.add(resident)
             residents.append(resident)
@@ -313,21 +356,25 @@ class DataSeeder:
 
         for i in range(count):
             device_type = random.choice(device_types)
-            device_names = NOMBRES_DISPOSITIVOS[device_type]
+            device_name = NOMBRES_DISPOSITIVOS[device_type]
 
             # Establecer user context para los triggers
             await self.session.execute(text("SELECT set_config('app.user_id', :uid, true)"), {"uid": created_by.id})
 
             device_id = str(uuid.uuid4())
             print(f"Creando device {i+1}: ID={device_id}, residence_id={residence.id}, created_by={created_by.id} (type: {type(created_by.id)})")
+
+            # Create device with random creation date over the past year
+            created_at = datetime.now(timezone.utc) - timedelta(days=random.randint(0, 365))
             device = Device(
                 id=device_id,
                 residence_id=residence.id,
                 type=device_type,
-                name=f"{random.choice(device_names)} {i+1:02d}",
+                name=f"{device_name} {residence.name.split()[-1]}-{i+1:02d}",
                 mac=f"00:11:22:{random.randint(0, 99):02d}:{random.randint(0, 99):02d}:{i+1:02d}",
                 battery_percent=random.randint(20, 100),
-                created_by=created_by.id
+                created_by=created_by.id,
+                created_at=created_at,
             )
             self.session.add(device)
             devices.append(device)
