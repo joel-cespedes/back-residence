@@ -19,6 +19,24 @@ from app.schemas import (
     MonthlyResidentData
 )
 
+# Nuevo esquema para conteos de navegación
+from pydantic import BaseModel
+from typing import Dict, Any
+
+class NavigationCounts(BaseModel):
+    """Conteos para navegación del menú"""
+    residences: int
+    residents: int
+    floors: int
+    rooms: int
+    beds: int
+    managers: int
+    professionals: int
+    categories: int
+    tasks: int
+    devices: int
+    measurements: int
+
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 # -------------------- Helper Functions --------------------
@@ -753,6 +771,152 @@ async def get_dashboard_data(
         device_stats=device_stats,
         yearly_comparison=yearly_comparison,
         recent_activity=recent_activity
+    )
+
+# -------------------- Navigation Counts Endpoint --------------------
+
+@router.get("/navigation-counts", response_model=NavigationCounts)
+async def get_navigation_counts(
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+):
+    """Get counts for navigation menu - returns all data the user can see based on their role"""
+
+    # Base queries depending on user role - NO residence_id header needed for navigation counts
+    if current["role"] == "superadmin":
+        # Superadmin can see everything
+        residences_query = select(func.count(Residence.id)).where(Residence.deleted_at.is_(None))
+
+        # Get all users by role
+        managers_query = select(func.count(User.id)).where(
+            User.role == 'manager',
+            User.deleted_at.is_(None)
+        )
+        professionals_query = select(func.count(User.id)).where(
+            User.role == 'professional',
+            User.deleted_at.is_(None)
+        )
+
+        # For all other entities, count all (superadmin sees everything)
+        residents_query = select(func.count(Resident.id)).where(Resident.deleted_at.is_(None))
+        floors_query = select(func.count(Floor.id)).where(Floor.deleted_at.is_(None))
+        rooms_query = select(func.count(Room.id)).where(Room.deleted_at.is_(None))
+        beds_query = select(func.count(Bed.id)).where(Bed.deleted_at.is_(None))
+        categories_query = select(func.count(TaskCategory.id)).where(TaskCategory.deleted_at.is_(None))
+        tasks_query = select(func.count(TaskApplication.id)).where(TaskApplication.deleted_at.is_(None))
+        devices_query = select(func.count(Device.id)).where(Device.deleted_at.is_(None))
+        measurements_query = select(func.count(Measurement.id)).where(Measurement.deleted_at.is_(None))
+
+    else:
+        # For managers and professionals, need to check which residences they have access to
+        user_residences_query = select(UserResidence).where(
+            UserResidence.user_id == current["id"],
+            UserResidence.deleted_at.is_(None)
+        )
+        user_residences_result = await db.execute(user_residences_query)
+        user_residences = user_residences_result.scalars().all()
+        residence_ids = [ur.residence_id for ur in user_residences]
+
+        if not residence_ids:
+            # User has no access to any residences
+            return NavigationCounts(
+                residences=0,
+                residents=0,
+                floors=0,
+                rooms=0,
+                beds=0,
+                managers=0,
+                professionals=0,
+                categories=0,
+                tasks=0,
+                devices=0,
+                measurements=0
+            )
+
+        # Count based on accessible residences
+        residences_query = select(func.count(Residence.id)).where(
+            Residence.id.in_(residence_ids),
+            Residence.deleted_at.is_(None)
+        )
+
+        # Count users by role across accessible residences
+        managers_query = select(func.count(User.id)).join(
+            UserResidence, User.id == UserResidence.user_id
+        ).where(
+            User.role == 'manager',
+            UserResidence.residence_id.in_(residence_ids),
+            User.deleted_at.is_(None),
+            UserResidence.deleted_at.is_(None)
+        )
+
+        professionals_query = select(func.count(User.id)).join(
+            UserResidence, User.id == UserResidence.user_id
+        ).where(
+            User.role == 'professional',
+            UserResidence.residence_id.in_(residence_ids),
+            User.deleted_at.is_(None),
+            UserResidence.deleted_at.is_(None)
+        )
+
+        # Count entities from accessible residences
+        residents_query = select(func.count(Resident.id)).where(
+            Resident.residence_id.in_(residence_ids),
+            Resident.deleted_at.is_(None)
+        )
+        floors_query = select(func.count(Floor.id)).where(
+            Floor.residence_id.in_(residence_ids),
+            Floor.deleted_at.is_(None)
+        )
+        rooms_query = select(func.count(Room.id)).where(
+            Room.residence_id.in_(residence_ids),
+            Room.deleted_at.is_(None)
+        )
+        beds_query = select(func.count(Bed.id)).where(
+            Bed.residence_id.in_(residence_ids),
+            Bed.deleted_at.is_(None)
+        )
+        categories_query = select(func.count(TaskCategory.id)).where(
+            TaskCategory.residence_id.in_(residence_ids),
+            TaskCategory.deleted_at.is_(None)
+        )
+        tasks_query = select(func.count(TaskApplication.id)).where(
+            TaskApplication.residence_id.in_(residence_ids),
+            TaskApplication.deleted_at.is_(None)
+        )
+        devices_query = select(func.count(Device.id)).where(
+            Device.residence_id.in_(residence_ids),
+            Device.deleted_at.is_(None)
+        )
+        measurements_query = select(func.count(Measurement.id)).where(
+            Measurement.residence_id.in_(residence_ids),
+            Measurement.deleted_at.is_(None)
+        )
+
+    # Execute all queries
+    residences = await db.scalar(residences_query) or 0
+    residents = await db.scalar(residents_query) or 0
+    floors = await db.scalar(floors_query) or 0
+    rooms = await db.scalar(rooms_query) or 0
+    beds = await db.scalar(beds_query) or 0
+    managers = await db.scalar(managers_query) or 0
+    professionals = await db.scalar(professionals_query) or 0
+    categories = await db.scalar(categories_query) or 0
+    tasks = await db.scalar(tasks_query) or 0
+    devices = await db.scalar(devices_query) or 0
+    measurements = await db.scalar(measurements_query) or 0
+
+    return NavigationCounts(
+        residences=residences,
+        residents=residents,
+        floors=floors,
+        rooms=rooms,
+        beds=beds,
+        managers=managers,
+        professionals=professionals,
+        categories=categories,
+        tasks=tasks,
+        devices=devices,
+        measurements=measurements
     )
 
 # -------------------- Individual Stats Endpoints --------------------
