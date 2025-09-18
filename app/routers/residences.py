@@ -12,7 +12,7 @@ from app.schemas import (
     ResidenceCreate, ResidenceUpdate, ResidenceOut,
     PaginationParams, PaginatedResponse, FilterParams
 )
-from app.security import new_uuid
+from app.security import new_uuid, decrypt_data, encrypt_data
 from sqlalchemy import text
 
 router = APIRouter(prefix="/residences", tags=["residences"])
@@ -89,10 +89,16 @@ async def paginate_query(
     result = await db.execute(query)
     items = []
     for row in result.scalars().all():
+        # Desencriptar datos de contacto
+        phone = decrypt_data(row.phone_encrypted) if row.phone_encrypted else 'No especificado'
+        email = decrypt_data(row.email_encrypted) if row.email_encrypted else 'No especificado'
+
         item = {
             'id': row.id,
             'name': row.name,
             'address': row.address,
+            'phone': phone,
+            'email': email,
             'created_at': row.created_at,
             'updated_at': row.updated_at
         }
@@ -146,9 +152,10 @@ async def create_residence(
     )
 
     # Handle encrypted fields if provided
-    if data.phone or data.email:
-        # TODO: Implement encryption for phone and email
-        pass
+    if data.phone:
+        residence.phone_encrypted = encrypt_data(data.phone)
+    if data.email:
+        residence.email_encrypted = encrypt_data(data.email)
 
     db.add(residence)
     await db.commit()
@@ -258,7 +265,11 @@ async def update_residence(
         if field not in ['phone', 'email']:  # Handle encrypted fields separately
             setattr(residence, field, value)
 
-    # TODO: Handle encrypted fields if provided
+    # Handle encrypted fields if provided
+    if 'phone' in update_data:
+        residence.phone_encrypted = encrypt_data(update_data['phone']) if update_data['phone'] else None
+    if 'email' in update_data:
+        residence.email_encrypted = encrypt_data(update_data['email']) if update_data['email'] else None
 
     await db.commit()
     await db.refresh(residence)

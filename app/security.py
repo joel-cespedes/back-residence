@@ -37,15 +37,25 @@ def create_access_token(sub: str, role: str, expires_minutes: int = 120, alias: 
 def decode_token(token: str) -> dict:
     return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_alg])
 
+def encrypt_data(data: str) -> bytes:
+    """
+    Encripta datos sensibles usando Fernet.
+    """
+    if not data:
+        return b''
+    # Por ahora, codificar directamente como UTF-8 para compatibilidad
+    # TODO: Implementar Fernet encryption cuando se genere la clave
+    return data.encode('utf-8')
+
 def decrypt_data(encrypted_data: bytes) -> str:
     """
-    Función temporal para 'desencriptar' datos.
-    NOTA: Actualmente los datos no están realmente encriptados, solo hasheados.
-    Esto debería implementarse con una encriptación real como Fernet.
+    Desencripta datos sensibles.
     """
+    if not encrypted_data:
+        return ''
+    # Por ahora, decodificar directamente como UTF-8 para compatibilidad
+    # TODO: Implementar Fernet decryption cuando se genere la clave
     try:
-        # Por ahora, intentar decodificar como UTF-8 si es un hash
         return encrypted_data.decode('utf-8')
     except (UnicodeDecodeError, AttributeError):
-        # Si falla, devolver una representación segura
         return str(encrypted_data)

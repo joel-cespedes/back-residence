@@ -44,6 +44,38 @@ NOMBRES_RESIDENCIAS = [
     "Residencia La Fuente", "Residencia El Sol", "Residencia San Miguel", "Residencia La Luna"
 ]
 
+# Datos de contacto para residencias
+DATOS_CONTACTO_RESIDENCIAS = [
+    ("+34 91 123 45 67", "info@residenciasantaclara.com"),
+    ("+34 91 234 56 78", "contacto@residenciarosal.com"),
+    ("+34 91 345 67 89", "admin@residencialaesperanza.com"),
+    ("+34 91 456 78 90", "info@residenciasanjose.com"),
+    ("+34 91 567 89 01", "contacto@residencialosolivos.com"),
+    ("+34 91 678 90 12", "admin@residencialapaz.com"),
+    ("+34 91 789 01 23", "info@residenciaelroble.com"),
+    ("+34 91 890 12 34", "contacto@residencialafloresta.com"),
+    ("+34 91 901 23 45", "admin@residenciasanjuan.com"),
+    ("+34 91 012 34 56", "info@residenciaelmirador.com"),
+    ("+34 91 123 45 67", "contacto@residenciaalameda.com"),
+    ("+34 91 234 56 78", "admin@residencialasacacias.com"),
+    ("+34 91 345 67 89", "info@residenciaelprado.com"),
+    ("+34 91 456 78 90", "contacto@residencialacolina.com"),
+    ("+34 91 567 89 01", "admin@residenciasanfrancisco.com"),
+    ("+34 91 678 90 12", "info@residenciaelbosque.com"),
+    ("+34 91 789 01 23", "contacto@residencialaroca.com"),
+    ("+34 91 890 12 34", "admin@residenciaellago.com"),
+    ("+34 91 901 23 45", "info@residenciasanantonio.com"),
+    ("+34 91 012 34 56", "contacto@residencialamontana.com"),
+    ("+34 91 123 45 67", "admin@residenciaeljardin.com"),
+    ("+34 91 234 56 78", "info@residencialacima.com"),
+    ("+34 91 345 67 89", "contacto@residenciasanpedro.com"),
+    ("+34 91 456 78 90", "admin@residenciaelvalle.com"),
+    ("+34 91 567 89 01", "info@residencialafuente.com"),
+    ("+34 91 678 90 12", "contacto@residenciaelsol.com"),
+    ("+34 91 789 01 23", "admin@residenciasanmiguel.com"),
+    ("+34 91 890 12 34", "info@residencialaluna.com")
+]
+
 APELLIDOS_COMUNES = ["García", "Rodríguez", "Martínez", "López", "Sánchez", "Pérez", "Gómez", "Fernández", "González", "Díaz"]
 
 NOMBRES_GESTORES = ["Carlos", "Juan", "Manuel", "Pedro", "José", "Luis", "Miguel", "Antonio", "Francisco", "Javier", "David", "Alejandro", "Sergio", "Jorge", "Roberto"]
@@ -127,7 +159,7 @@ class EnhancedDataSeeder:
         return user
 
     async def seed_residences(self, count: int = 28) -> List[Residence]:
-        """Crea residencias"""
+        """Crea residencias con datos de contacto y fechas aleatorias"""
         print(f"🏠 Creando {count} residencias...")
         residences = []
 
@@ -135,10 +167,24 @@ class EnhancedDataSeeder:
             residence_id = str(uuid.uuid4())
             residence_name = NOMBRES_RESIDENCIAS[i % len(NOMBRES_RESIDENCIAS)]
 
+            # Obtener datos de contacto
+            phone, email = DATOS_CONTACTO_RESIDENCIAS[i % len(DATOS_CONTACTO_RESIDENCIAS)]
+
+            # Generar fecha de creación aleatoria en los últimos 2 años
+            days_ago = random.randint(0, 730)  # 0 a 730 días atrás
+            created_at = datetime.now(timezone.utc) - timedelta(days=days_ago)
+
+            # Generar fecha de actualización aleatoria entre la creación y ahora
+            updated_at = created_at + timedelta(days=random.randint(0, days_ago))
+
             residence = Residence(
                 id=residence_id,
                 name=f"{residence_name} {i+1}",
-                address=f"Calle Principal {i+1}, Ciudad, País"
+                address=f"Calle Principal {i+1}, Ciudad, País",
+                phone_encrypted=phone.encode('utf-8'),
+                email_encrypted=email.encode('utf-8'),
+                created_at=created_at,
+                updated_at=updated_at
             )
 
             self.session.add(residence)
