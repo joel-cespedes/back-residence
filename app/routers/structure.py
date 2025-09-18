@@ -134,6 +134,53 @@ async def paginate_query_structure(
         has_prev=has_prev
     )
 
+async def paginate_floors_query(query, db: AsyncSession, pagination: PaginationParams) -> PaginatedResponse:
+    """Apply pagination to floors query with joins"""
+    # Count only unique floor IDs to avoid duplication due to joins
+    count_query = select(func.count(Floor.id.distinct())).select_from(
+        query.subquery()
+    )
+    total = await db.scalar(count_query)
+
+    if pagination.sort_by:
+        sort_field = getattr(Floor, pagination.sort_by, Floor.created_at)
+        if pagination.sort_order == 'desc':
+            sort_field = sort_field.desc()
+        query = query.order_by(sort_field)
+    else:
+        query = query.order_by(Floor.created_at.desc())
+
+    offset = (pagination.page - 1) * pagination.size
+    query = query.offset(offset).limit(pagination.size)
+    result = await db.execute(query)
+
+    items = []
+    for row in result.all():
+        floor, residence_name = row
+        item = {
+            'id': floor.id,
+            'residence_id': floor.residence_id,
+            'name': floor.name,
+            'residence_name': residence_name,
+            'created_at': floor.created_at,
+            'updated_at': floor.updated_at
+        }
+        items.append(item)
+
+    pages = (total + pagination.size - 1) // pagination.size
+    has_next = pagination.page < pages
+    has_prev = pagination.page > 1
+
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        page=pagination.page,
+        size=pagination.size,
+        pages=pages,
+        has_next=has_next,
+        has_prev=has_prev
+    )
+
 # -------------------- FLOOR CRUD --------------------
 
 @router.post("/floors", response_model=FloorOut, status_code=201)
@@ -185,23 +232,52 @@ async def list_floors(
     """List floors with pagination"""
     await apply_residence_context(db, current, residence_id)
 
+    # Always use joins for consistency and to include residence_name
+    query = select(Floor, Residence.name.label("residence_name")).join(Residence, Floor.residence_id == Residence.id)
+
+    # Apply residence filter
     if current["role"] == "superadmin":
         if residence_id:
-            query = select(Floor).where(Floor.residence_id == residence_id, Floor.deleted_at.is_(None))
+            query = query.where(Floor.residence_id == residence_id, Floor.deleted_at.is_(None))
         else:
-            query = select(Floor).where(Floor.deleted_at.is_(None))
+            query = query.where(Floor.deleted_at.is_(None))
     else:
         if not residence_id:
             raise HTTPException(status_code=400, detail="Residence ID is required")
-        query = select(Floor).where(Floor.residence_id == residence_id, Floor.deleted_at.is_(None))
+        query = query.where(Floor.residence_id == residence_id, Floor.deleted_at.is_(None))
 
-    return await paginate_query_structure(query, db, pagination, filters)
+    # Apply search filter
+    search_term = pagination.search or (filters.search if filters else None)
+    if search_term:
+        search_pattern = f"%{search_term.lower().strip()}%"
+        query = query.where(
+            or_(
+                Floor.name.ilike(search_pattern),
+                Residence.name.ilike(search_pattern)
+            )
+        )
+
+    return await paginate_floors_query(query, db, pagination)
 
 @router.get("/floors/{residence_id}/simple")
 async def floors_simple(residence_id: str, db: AsyncSession = Depends(get_db)):
     """Get simple list of floors for a residence (legacy endpoint)"""
-    r = await db.execute(select(Floor).where(Floor.residence_id==residence_id, Floor.deleted_at.is_(None)))
-    return [ {"id": f.id, "name": f.name} for f in r.scalars().all() ]
+    r = await db.execute(
+        select(Floor, Residence.name.label("residence_name"))
+        .join(Residence, Floor.residence_id == Residence.id)
+        .where(Floor.residence_id == residence_id, Floor.deleted_at.is_(None))
+    )
+    return [
+        {
+            "id": f.id,
+            "name": f.name,
+            "residence_id": f.residence_id,
+            "residence_name": residence_name,
+            "created_at": f.created_at.isoformat() if f.created_at else None,
+            "updated_at": f.updated_at.isoformat() if f.updated_at else None
+        }
+        for f, residence_name in r
+    ]
 
 @router.get("/floors/{id}", response_model=FloorOut)
 async def get_floor(
@@ -280,6 +356,60 @@ async def delete_floor(
 
 # -------------------- ROOM CRUD --------------------
 
+async def paginate_query_rooms(
+    query,
+    db: AsyncSession,
+    pagination: PaginationParams,
+    filter_params: FilterParams = None
+) -> PaginatedResponse:
+    """Apply pagination and filters to a room query with joins"""
+    if filter_params and filter_params.search:
+        search_term = f"%{filter_params.search}%"
+        query = query.where(Room.name.ilike(search_term))
+
+    count_query = select(func.count()).select_from(query.subquery())
+    total = await db.scalar(count_query)
+
+    if pagination.sort_by:
+        sort_field = getattr(Room, pagination.sort_by, Room.created_at)
+        if pagination.sort_order == 'desc':
+            sort_field = sort_field.desc()
+        query = query.order_by(sort_field)
+    else:
+        query = query.order_by(Room.created_at.desc())
+
+    offset = (pagination.page - 1) * pagination.size
+    query = query.offset(offset).limit(pagination.size)
+    result = await db.execute(query)
+
+    items = []
+    for row in result.all():
+        item = {
+            'id': row.id,
+            'residence_id': row.residence_id,
+            'floor_id': row.floor_id,
+            'name': row.name,
+            'floor_name': row.floor_name or 'Desconocido',
+            'residence_name': row.residence_name or 'Desconocida',
+            'created_at': row.created_at,
+            'updated_at': row.updated_at
+        }
+        items.append(item)
+
+    pages = (total + pagination.size - 1) // pagination.size
+    has_next = pagination.page < pages
+    has_prev = pagination.page > 1
+
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        page=pagination.page,
+        size=pagination.size,
+        pages=pages,
+        has_next=has_next,
+        has_prev=has_prev
+    )
+
 @router.post("/rooms", response_model=RoomOut, status_code=201)
 async def create_room(
     data: RoomCreate,
@@ -290,7 +420,7 @@ async def create_room(
     """Create a new room"""
     await apply_residence_context(db, current, residence_id)
 
-    floor = await get_floor_or_404(data.floor_id)
+    floor = await get_floor_or_404(data.floor_id, db)
 
     if current["role"] != "superadmin":
         result = await db.execute(
@@ -333,27 +463,87 @@ async def list_rooms(
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
     residence_id: str | None = Query(None, alias="X-Residence-Id"),
+    search: str | None = Query(None, description="Search term for room name, floor name, or residence name"),
 ):
     """List rooms with pagination"""
     await apply_residence_context(db, current, residence_id)
 
+    # Create query with joins to get related names
+    query = select(
+        Room.id,
+        Room.name,
+        Room.residence_id,
+        Room.floor_id,
+        Room.created_at,
+        Room.updated_at,
+        Floor.name.label('floor_name'),
+        Residence.name.label('residence_name')
+    ).join(
+        Floor, Room.floor_id == Floor.id, isouter=True
+    ).join(
+        Residence, Room.residence_id == Residence.id, isouter=True
+    ).where(
+        Room.deleted_at.is_(None)
+    )
+
+    # Apply search filter if provided
+    if search:
+        search_term = f"%{search.lower().strip()}%"
+        query = query.where(
+            or_(
+                Room.name.ilike(search_term),
+                Floor.name.ilike(search_term),
+                Residence.name.ilike(search_term)
+            )
+        )
+
+    # Apply role-based filtering
     if current["role"] == "superadmin":
         if residence_id:
-            query = select(Room).where(Room.residence_id == residence_id, Room.deleted_at.is_(None))
-        else:
-            query = select(Room).where(Room.deleted_at.is_(None))
+            query = query.where(Room.residence_id == residence_id)
     else:
         if not residence_id:
             raise HTTPException(status_code=400, detail="Residence ID is required")
-        query = select(Room).where(Room.residence_id == residence_id, Room.deleted_at.is_(None))
+        query = query.where(Room.residence_id == residence_id)
 
-    return await paginate_query_structure(query, db, pagination, filters)
+    return await paginate_query_rooms(query, db, pagination, filters)
 
 @router.get("/rooms/{floor_id}/simple")
 async def rooms_simple(floor_id: str, db: AsyncSession = Depends(get_db)):
     """Get simple list of rooms for a floor (legacy endpoint)"""
-    r = await db.execute(select(Room).where(Room.floor_id==floor_id, Room.deleted_at.is_(None)))
-    return [ {"id": x.id, "name": x.name} for x in r.scalars().all() ]
+
+    # First verify the floor exists
+    floor_check = await db.execute(
+        select(Floor).where(Floor.id == floor_id, Floor.deleted_at.is_(None))
+    )
+    floor = floor_check.scalar_one_or_none()
+
+    if not floor:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Floor with ID {floor_id} not found"
+        )
+
+    # Then get rooms for that floor
+    r = await db.execute(
+        select(Room, Floor.name.label("floor_name"), Residence.name.label("residence_name"))
+        .join(Floor, Room.floor_id == Floor.id)
+        .join(Residence, Floor.residence_id == Residence.id)
+        .where(Room.floor_id == floor_id, Room.deleted_at.is_(None))
+    )
+    return [
+        {
+            "id": x[0].id,
+            "name": x[0].name,
+            "floor_id": x[0].floor_id,
+            "residence_id": x[0].residence_id,
+            "floor_name": x[1],
+            "residence_name": x[2],
+            "created_at": x[0].created_at.isoformat() if x[0].created_at else None,
+            "updated_at": x[0].updated_at.isoformat() if x[0].updated_at else None
+        }
+        for x in r.all()
+    ]
 
 @router.get("/rooms/{id}", response_model=RoomOut)
 async def get_room(
@@ -504,8 +694,28 @@ async def list_beds(
 @router.get("/beds/{room_id}/simple")
 async def beds_simple(room_id: str, db: AsyncSession = Depends(get_db)):
     """Get simple list of beds for a room (legacy endpoint)"""
-    r = await db.execute(select(Bed).where(Bed.room_id==room_id, Bed.deleted_at.is_(None)))
-    return [ {"id": x.id, "name": x.name} for x in r.scalars().all() ]
+    r = await db.execute(
+        select(Bed, Room.name.label("room_name"), Floor.name.label("floor_name"), Residence.name.label("residence_name"))
+        .join(Room, Bed.room_id == Room.id)
+        .join(Floor, Room.floor_id == Floor.id)
+        .join(Residence, Floor.residence_id == Residence.id)
+        .where(Bed.room_id == room_id, Bed.deleted_at.is_(None))
+    )
+    return [
+        {
+            "id": x[0].id,
+            "name": x[0].name,
+            "room_id": x[0].room_id,
+            "floor_id": x[0].floor_id,
+            "residence_id": x[0].residence_id,
+            "room_name": x[1],
+            "floor_name": x[2],
+            "residence_name": x[3],
+            "created_at": x[0].created_at.isoformat() if x[0].created_at else None,
+            "updated_at": x[0].updated_at.isoformat() if x[0].updated_at else None
+        }
+        for x in r.all()
+    ]
 
 @router.get("/beds/{id}", response_model=BedOut)
 async def get_bed(
