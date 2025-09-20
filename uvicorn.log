@@ -1,0 +1,1752 @@
+INFO:     Will watch for changes in these directories: ['/Users/joelcespedes/Desktop/residences/back-residence']
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+INFO:     Started reloader process [8952] using WatchFiles
+INFO:     Started server process [8964]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     GET /residents/ -> 401 (2.4 ms)
+INFO:     127.0.0.1:63733 - "GET /residents/?page=1&size=10 HTTP/1.1" 401 Unauthorized
+INFO:     OPTIONS /residences/mine -> 200 (2.6 ms)
+INFO:     127.0.0.1:49648 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (2.7 ms)
+INFO:     127.0.0.1:49649 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (1.1 ms)
+INFO:     127.0.0.1:49650 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (1.3 ms)
+INFO:     127.0.0.1:49651 - "OPTIONS /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (123.0 ms)
+INFO:     127.0.0.1:49648 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (102.6 ms)
+INFO:     127.0.0.1:49651 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (140.1 ms)
+INFO:     127.0.0.1:49650 - "GET /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (167.7 ms)
+INFO:     127.0.0.1:49649 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.2 ms)
+INFO:     127.0.0.1:49671 - "OPTIONS /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/floors/bcfe55fc-86cf-46e6-99a6-bd8fccfbb581/simple -> 200 (0.7 ms)
+INFO:     127.0.0.1:49671 - "OPTIONS /structure/floors/bcfe55fc-86cf-46e6-99a6-bd8fccfbb581/simple HTTP/1.1" 200 OK
+INFO:     GET /structure/floors/bcfe55fc-86cf-46e6-99a6-bd8fccfbb581/simple -> 200 (12.4 ms)
+INFO:     127.0.0.1:49671 - "GET /structure/floors/bcfe55fc-86cf-46e6-99a6-bd8fccfbb581/simple HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (42.8 ms)
+INFO:     127.0.0.1:49672 - "GET /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (2.5 ms)
+INFO:     127.0.0.1:52800 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (3.5 ms)
+INFO:     127.0.0.1:52801 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (3.5 ms)
+INFO:     127.0.0.1:52802 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (3.9 ms)
+INFO:     127.0.0.1:52803 - "OPTIONS /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (108.4 ms)
+INFO:     127.0.0.1:52801 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (15.1 ms)
+INFO:     127.0.0.1:52803 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (274.8 ms)
+INFO:     127.0.0.1:52800 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (348.7 ms)
+INFO:     127.0.0.1:52802 - "GET /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.2 ms)
+INFO:     127.0.0.1:52802 - "OPTIONS /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/floors/79e60bed-1690-4c4e-b182-dad64e4668a3/simple -> 200 (0.8 ms)
+INFO:     127.0.0.1:52802 - "OPTIONS /structure/floors/79e60bed-1690-4c4e-b182-dad64e4668a3/simple HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (11.7 ms)
+INFO:     127.0.0.1:52800 - "GET /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /structure/floors/79e60bed-1690-4c4e-b182-dad64e4668a3/simple -> 200 (6.6 ms)
+INFO:     127.0.0.1:52802 - "GET /structure/floors/79e60bed-1690-4c4e-b182-dad64e4668a3/simple HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.3 ms)
+INFO:     127.0.0.1:52845 - "OPTIONS /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/floors/2394eef0-5928-4892-8a2b-8b2909787975/simple -> 200 (0.4 ms)
+INFO:     127.0.0.1:52846 - "OPTIONS /structure/floors/2394eef0-5928-4892-8a2b-8b2909787975/simple HTTP/1.1" 200 OK
+INFO:     GET /structure/floors/2394eef0-5928-4892-8a2b-8b2909787975/simple -> 200 (5.5 ms)
+INFO:     127.0.0.1:52846 - "GET /structure/floors/2394eef0-5928-4892-8a2b-8b2909787975/simple HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (23.2 ms)
+INFO:     127.0.0.1:52845 - "GET /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (2.0 ms)
+INFO:     127.0.0.1:53252 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (1.8 ms)
+INFO:     127.0.0.1:53253 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (1.8 ms)
+INFO:     127.0.0.1:53254 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (15.0 ms)
+INFO:     127.0.0.1:53255 - "OPTIONS /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (65.5 ms)
+INFO:     127.0.0.1:53253 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (50.7 ms)
+INFO:     127.0.0.1:53256 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (57.7 ms)
+INFO:     127.0.0.1:53255 - "GET /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (186.0 ms)
+INFO:     127.0.0.1:53252 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /auth/login -> 200 (4.0 ms)
+INFO:     127.0.0.1:58371 - "OPTIONS /auth/login HTTP/1.1" 200 OK
+INFO:     POST /auth/login -> 200 (309.0 ms)
+INFO:     127.0.0.1:58371 - "POST /auth/login HTTP/1.1" 200 OK
+INFO:     OPTIONS /auth/me -> 200 (0.1 ms)
+INFO:     127.0.0.1:58371 - "OPTIONS /auth/me HTTP/1.1" 200 OK
+INFO:     GET /auth/me -> 200 (0.5 ms)
+INFO:     127.0.0.1:58371 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     OPTIONS /auth/me -> 200 (0.1 ms)
+INFO:     127.0.0.1:58371 - "OPTIONS /auth/me HTTP/1.1" 200 OK
+INFO:     GET /auth/me -> 200 (3.4 ms)
+INFO:     127.0.0.1:58371 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (1.1 ms)
+INFO:     127.0.0.1:58371 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (1.2 ms)
+INFO:     127.0.0.1:58372 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (6.3 ms)
+INFO:     127.0.0.1:58372 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /auth/me -> 200 (0.1 ms)
+INFO:     127.0.0.1:58372 - "OPTIONS /auth/me HTTP/1.1" 200 OK
+INFO:     GET /auth/me -> 200 (0.9 ms)
+INFO:     127.0.0.1:58372 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (40.7 ms)
+INFO:     127.0.0.1:58371 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (0.8 ms)
+INFO:     127.0.0.1:58371 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/task-categories -> 200 (2.3 ms)
+INFO:     127.0.0.1:58372 - "OPTIONS /dashboard/task-categories HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/new-residents/stats -> 200 (0.9 ms)
+INFO:     127.0.0.1:58385 - "OPTIONS /dashboard/new-residents/stats HTTP/1.1" 200 OK
+INFO:     GET /dashboard/new-residents/stats -> 200 (26.1 ms)
+INFO:     127.0.0.1:58385 - "GET /dashboard/new-residents/stats HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (40.5 ms)
+INFO:     127.0.0.1:58371 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     GET /dashboard/task-categories -> 200 (240.8 ms)
+INFO:     127.0.0.1:58372 - "GET /dashboard/task-categories HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (0.3 ms)
+INFO:     127.0.0.1:58372 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (1.2 ms)
+INFO:     127.0.0.1:58371 - "OPTIONS /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (16.6 ms)
+INFO:     127.0.0.1:58372 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (11.7 ms)
+INFO:     127.0.0.1:58371 - "GET /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.2 ms)
+INFO:     127.0.0.1:58371 - "OPTIONS /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/floors/2394eef0-5928-4892-8a2b-8b2909787975/simple -> 200 (0.3 ms)
+INFO:     127.0.0.1:58372 - "OPTIONS /structure/floors/2394eef0-5928-4892-8a2b-8b2909787975/simple HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (0.4 ms)
+INFO:     127.0.0.1:58386 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (13.9 ms)
+INFO:     127.0.0.1:58371 - "GET /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /structure/floors/2394eef0-5928-4892-8a2b-8b2909787975/simple -> 200 (10.5 ms)
+INFO:     127.0.0.1:58372 - "GET /structure/floors/2394eef0-5928-4892-8a2b-8b2909787975/simple HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (4.4 ms)
+INFO:     127.0.0.1:58386 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (1.9 ms)
+INFO:     127.0.0.1:58957 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (3.0 ms)
+INFO:     127.0.0.1:58958 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (12.0 ms)
+INFO:     127.0.0.1:58957 - "OPTIONS /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (12.3 ms)
+INFO:     127.0.0.1:58959 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (80.7 ms)
+INFO:     127.0.0.1:58958 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (269.4 ms)
+INFO:     127.0.0.1:58959 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (359.0 ms)
+INFO:     127.0.0.1:58957 - "GET /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (588.9 ms)
+INFO:     127.0.0.1:58960 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (3.1 ms)
+INFO:     127.0.0.1:59065 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (3.7 ms)
+INFO:     127.0.0.1:59066 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (17.5 ms)
+INFO:     127.0.0.1:59065 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (0.3 ms)
+INFO:     127.0.0.1:59065 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (2.1 ms)
+INFO:     127.0.0.1:59065 - "OPTIONS /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (14.1 ms)
+INFO:     127.0.0.1:59067 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (11.3 ms)
+INFO:     127.0.0.1:59065 - "GET /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (39.8 ms)
+INFO:     127.0.0.1:59066 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (1.0 ms)
+INFO:     127.0.0.1:59068 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (1.3 ms)
+INFO:     127.0.0.1:59128 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (16.1 ms)
+INFO:     127.0.0.1:59128 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (0.4 ms)
+INFO:     127.0.0.1:59128 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.8 ms)
+INFO:     127.0.0.1:59129 - "OPTIONS /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (17.7 ms)
+INFO:     127.0.0.1:59128 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (21.8 ms)
+INFO:     127.0.0.1:59129 - "GET /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (92.1 ms)
+INFO:     127.0.0.1:59068 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (1.5 ms)
+INFO:     127.0.0.1:59328 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (2.0 ms)
+INFO:     127.0.0.1:59329 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (2.4 ms)
+INFO:     127.0.0.1:59330 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (1.6 ms)
+INFO:     127.0.0.1:59331 - "OPTIONS /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (69.5 ms)
+INFO:     127.0.0.1:59329 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (85.4 ms)
+INFO:     127.0.0.1:59332 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (101.4 ms)
+INFO:     127.0.0.1:59330 - "GET /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (174.4 ms)
+INFO:     127.0.0.1:59328 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (1.4 ms)
+INFO:     127.0.0.1:59758 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (9.4 ms)
+INFO:     127.0.0.1:59759 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (34.1 ms)
+INFO:     127.0.0.1:59760 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (34.3 ms)
+INFO:     127.0.0.1:59761 - "OPTIONS /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (301.7 ms)
+INFO:     127.0.0.1:59759 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (240.4 ms)
+INFO:     127.0.0.1:59761 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (123.9 ms)
+INFO:     127.0.0.1:59760 - "GET /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (327.5 ms)
+INFO:     127.0.0.1:59758 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.2 ms)
+INFO:     127.0.0.1:59758 - "OPTIONS /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/floors/d93c67f3-b8c2-4174-b24d-7863261c63e0/simple -> 200 (0.3 ms)
+INFO:     127.0.0.1:59760 - "OPTIONS /structure/floors/d93c67f3-b8c2-4174-b24d-7863261c63e0/simple HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (0.5 ms)
+INFO:     127.0.0.1:59761 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (12.4 ms)
+INFO:     127.0.0.1:59758 - "GET /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /structure/floors/d93c67f3-b8c2-4174-b24d-7863261c63e0/simple -> 200 (9.1 ms)
+INFO:     127.0.0.1:59760 - "GET /structure/floors/d93c67f3-b8c2-4174-b24d-7863261c63e0/simple HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (4.1 ms)
+INFO:     127.0.0.1:59761 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /auth/login -> 200 (2.6 ms)
+INFO:     127.0.0.1:60004 - "OPTIONS /auth/login HTTP/1.1" 200 OK
+INFO:     POST /auth/login -> 200 (273.5 ms)
+INFO:     127.0.0.1:60005 - "POST /auth/login HTTP/1.1" 200 OK
+INFO:     OPTIONS /auth/me -> 200 (0.2 ms)
+INFO:     127.0.0.1:60005 - "OPTIONS /auth/me HTTP/1.1" 200 OK
+INFO:     GET /auth/me -> 200 (0.6 ms)
+INFO:     127.0.0.1:60005 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     OPTIONS /auth/me -> 200 (0.3 ms)
+INFO:     127.0.0.1:60005 - "OPTIONS /auth/me HTTP/1.1" 200 OK
+INFO:     GET /auth/me -> 200 (0.6 ms)
+INFO:     127.0.0.1:60005 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (0.7 ms)
+INFO:     127.0.0.1:60005 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (0.8 ms)
+INFO:     127.0.0.1:60004 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /auth/me -> 200 (9.2 ms)
+INFO:     127.0.0.1:60010 - "OPTIONS /auth/me HTTP/1.1" 200 OK
+INFO:     GET /auth/me -> 200 (0.4 ms)
+INFO:     127.0.0.1:60010 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (38.6 ms)
+INFO:     127.0.0.1:60005 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (1.0 ms)
+INFO:     127.0.0.1:60005 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (69.8 ms)
+INFO:     127.0.0.1:60004 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (5.3 ms)
+INFO:     127.0.0.1:60005 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (0.9 ms)
+INFO:     127.0.0.1:60005 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/task-categories -> 200 (1.0 ms)
+INFO:     127.0.0.1:60004 - "OPTIONS /dashboard/task-categories HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/new-residents/stats -> 200 (1.5 ms)
+INFO:     127.0.0.1:60010 - "OPTIONS /dashboard/new-residents/stats HTTP/1.1" 200 OK
+INFO:     GET /dashboard/new-residents/stats -> 200 (12.9 ms)
+INFO:     127.0.0.1:60011 - "GET /dashboard/new-residents/stats HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (25.0 ms)
+INFO:     127.0.0.1:60005 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     GET /dashboard/task-categories -> 200 (203.5 ms)
+INFO:     127.0.0.1:60004 - "GET /dashboard/task-categories HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (0.3 ms)
+INFO:     127.0.0.1:60004 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.8 ms)
+INFO:     127.0.0.1:60005 - "OPTIONS /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (28.6 ms)
+INFO:     127.0.0.1:60005 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (43.5 ms)
+INFO:     127.0.0.1:60011 - "GET /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.4 ms)
+INFO:     127.0.0.1:60011 - "OPTIONS /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/floors/2394eef0-5928-4892-8a2b-8b2909787975/simple -> 200 (0.7 ms)
+INFO:     127.0.0.1:60005 - "OPTIONS /structure/floors/2394eef0-5928-4892-8a2b-8b2909787975/simple HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (1.9 ms)
+INFO:     127.0.0.1:60004 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /structure/floors/2394eef0-5928-4892-8a2b-8b2909787975/simple -> 200 (70.6 ms)
+INFO:     127.0.0.1:60005 - "GET /structure/floors/2394eef0-5928-4892-8a2b-8b2909787975/simple HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (89.3 ms)
+INFO:     127.0.0.1:60011 - "GET /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (126.4 ms)
+INFO:     127.0.0.1:60004 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.2 ms)
+INFO:     127.0.0.1:60084 - "OPTIONS /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/floors/d93c67f3-b8c2-4174-b24d-7863261c63e0/simple -> 200 (0.4 ms)
+INFO:     127.0.0.1:60085 - "OPTIONS /structure/floors/d93c67f3-b8c2-4174-b24d-7863261c63e0/simple HTTP/1.1" 200 OK
+INFO:     GET /structure/floors/d93c67f3-b8c2-4174-b24d-7863261c63e0/simple -> 200 (5.8 ms)
+INFO:     127.0.0.1:60085 - "GET /structure/floors/d93c67f3-b8c2-4174-b24d-7863261c63e0/simple HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (14.9 ms)
+INFO:     127.0.0.1:60084 - "GET /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (0.7 ms)
+INFO:     127.0.0.1:60085 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (3.4 ms)
+INFO:     127.0.0.1:60085 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /openapi.json -> 200 (49.0 ms)
+INFO:     127.0.0.1:60108 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (0.6 ms)
+INFO:     127.0.0.1:60134 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (0.7 ms)
+INFO:     127.0.0.1:60135 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (18.1 ms)
+INFO:     127.0.0.1:60135 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (0.1 ms)
+INFO:     127.0.0.1:60135 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.3 ms)
+INFO:     127.0.0.1:60135 - "OPTIONS /residents/?residence_id=d93c67f3-b8c2-4174-b24d-7863261c63e0&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (15.4 ms)
+INFO:     127.0.0.1:60136 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (18.7 ms)
+INFO:     127.0.0.1:60135 - "GET /residents/?residence_id=d93c67f3-b8c2-4174-b24d-7863261c63e0&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (45.6 ms)
+INFO:     127.0.0.1:60134 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (4.3 ms)
+INFO:     127.0.0.1:60162 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (3.7 ms)
+INFO:     127.0.0.1:60163 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (2.5 ms)
+INFO:     127.0.0.1:60164 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (2.0 ms)
+INFO:     127.0.0.1:60165 - "OPTIONS /residents/?residence_id=d93c67f3-b8c2-4174-b24d-7863261c63e0&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (49.3 ms)
+INFO:     127.0.0.1:60163 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (31.8 ms)
+INFO:     127.0.0.1:60164 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (62.5 ms)
+INFO:     127.0.0.1:60166 - "GET /residents/?residence_id=d93c67f3-b8c2-4174-b24d-7863261c63e0&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (112.9 ms)
+INFO:     127.0.0.1:60162 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (0.5 ms)
+INFO:     127.0.0.1:60204 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (1.1 ms)
+INFO:     127.0.0.1:60205 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (12.0 ms)
+INFO:     127.0.0.1:60205 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (0.3 ms)
+INFO:     127.0.0.1:60205 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.6 ms)
+INFO:     127.0.0.1:60206 - "OPTIONS /residents/?residence_id=d93c67f3-b8c2-4174-b24d-7863261c63e0&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (11.2 ms)
+INFO:     127.0.0.1:60205 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (14.9 ms)
+INFO:     127.0.0.1:60206 - "GET /residents/?residence_id=d93c67f3-b8c2-4174-b24d-7863261c63e0&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (58.8 ms)
+INFO:     127.0.0.1:60204 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (0.6 ms)
+INFO:     127.0.0.1:60204 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (1.8 ms)
+INFO:     127.0.0.1:60206 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (13.3 ms)
+INFO:     127.0.0.1:60205 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (0.8 ms)
+INFO:     127.0.0.1:60205 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.4 ms)
+INFO:     127.0.0.1:60204 - "OPTIONS /residents/?residence_id=d93c67f3-b8c2-4174-b24d-7863261c63e0&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (15.3 ms)
+INFO:     127.0.0.1:60205 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (19.3 ms)
+INFO:     127.0.0.1:60204 - "GET /residents/?residence_id=d93c67f3-b8c2-4174-b24d-7863261c63e0&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (46.5 ms)
+INFO:     127.0.0.1:60206 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (1.3 ms)
+INFO:     127.0.0.1:60404 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (2.4 ms)
+INFO:     127.0.0.1:60405 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (1.2 ms)
+INFO:     127.0.0.1:60406 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (1.6 ms)
+INFO:     127.0.0.1:60407 - "OPTIONS /residents/?residence_id=d93c67f3-b8c2-4174-b24d-7863261c63e0&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (23.1 ms)
+INFO:     127.0.0.1:60404 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (11.1 ms)
+INFO:     127.0.0.1:60406 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (12.3 ms)
+INFO:     127.0.0.1:60408 - "GET /residents/?residence_id=d93c67f3-b8c2-4174-b24d-7863261c63e0&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (46.4 ms)
+INFO:     127.0.0.1:60405 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.2 ms)
+INFO:     127.0.0.1:60405 - "OPTIONS /residents/?residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/floors/79e60bed-1690-4c4e-b182-dad64e4668a3/simple -> 200 (0.9 ms)
+INFO:     127.0.0.1:60405 - "OPTIONS /structure/floors/79e60bed-1690-4c4e-b182-dad64e4668a3/simple HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (2.4 ms)
+INFO:     127.0.0.1:60406 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /structure/floors/79e60bed-1690-4c4e-b182-dad64e4668a3/simple -> 200 (9.1 ms)
+INFO:     127.0.0.1:60405 - "GET /structure/floors/79e60bed-1690-4c4e-b182-dad64e4668a3/simple HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (15.1 ms)
+INFO:     127.0.0.1:60408 - "GET /residents/?residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (5.2 ms)
+INFO:     127.0.0.1:60406 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.2 ms)
+INFO:     127.0.0.1:60457 - "OPTIONS /residents/?floor_id=1a742099-ea19-48d6-9365-945c2b8390a3&residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/rooms/1a742099-ea19-48d6-9365-945c2b8390a3/simple -> 200 (1.2 ms)
+INFO:     127.0.0.1:60458 - "OPTIONS /structure/rooms/1a742099-ea19-48d6-9365-945c2b8390a3/simple HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (22.1 ms)
+INFO:     127.0.0.1:60457 - "GET /residents/?floor_id=1a742099-ea19-48d6-9365-945c2b8390a3&residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /structure/rooms/1a742099-ea19-48d6-9365-945c2b8390a3/simple -> 200 (22.5 ms)
+INFO:     127.0.0.1:60458 - "GET /structure/rooms/1a742099-ea19-48d6-9365-945c2b8390a3/simple HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.2 ms)
+INFO:     127.0.0.1:60493 - "OPTIONS /residents/?floor_id=1a742099-ea19-48d6-9365-945c2b8390a3&room_id=85b1b1cd-7f5b-4bef-af5f-7464013cbe79&residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/beds/85b1b1cd-7f5b-4bef-af5f-7464013cbe79/simple -> 200 (0.4 ms)
+INFO:     127.0.0.1:60494 - "OPTIONS /structure/beds/85b1b1cd-7f5b-4bef-af5f-7464013cbe79/simple HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60493 - "GET /residents/?floor_id=1a742099-ea19-48d6-9365-945c2b8390a3&room_id=85b1b1cd-7f5b-4bef-af5f-7464013cbe79&residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 514, in _prepare_and_execute
+    prepared_stmt, attributes = await adapt_connection._prepare(
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 760, in _prepare
+    prepared_stmt = await self._connection.prepare(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/asyncpg/connection.py", line 636, in prepare
+    return await self._prepare(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/asyncpg/connection.py", line 654, in _prepare
+    stmt = await self._get_statement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/asyncpg/connection.py", line 433, in _get_statement
+    statement = await self._protocol.prepare(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "asyncpg/protocol/protocol.pyx", line 166, in prepare
+asyncpg.exceptions.DuplicateAliasError: table name "bed" specified more than once
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 572, in execute
+    self._adapt_connection.await_(
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 550, in _prepare_and_execute
+    self._handle_exception(error)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 501, in _handle_exception
+    self._adapt_connection._handle_exception(error)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 784, in _handle_exception
+    raise translated_error from error
+sqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_dbapi.ProgrammingError: <class 'asyncpg.exceptions.DuplicateAliasError'>: table name "bed" specified more than once
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/uvicorn/protocols/http/httptools_impl.py", line 409, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/fastapi/applications.py", line 1054, in __call__
+    await super().__call__(scope, receive, send)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/applications.py", line 113, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/middleware/errors.py", line 186, in __call__
+    raise exc
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/middleware/base.py", line 182, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.11/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/_utils.py", line 85, in collapse_excgroups
+    raise exc
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/middleware/base.py", line 184, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/app/middlewares.py", line 22, in timing
+    resp = await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/middleware/base.py", line 159, in call_next
+    raise app_exc
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/middleware/cors.py", line 93, in __call__
+    await self.simple_response(scope, receive, send, request_headers=headers)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/middleware/cors.py", line 144, in simple_response
+    await self.app(scope, receive, send)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/routing.py", line 78, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/routing.py", line 75, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/fastapi/routing.py", line 302, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/fastapi/routing.py", line 213, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/app/routers/residents.py", line 232, in list_residents
+    return await paginate_query_residents(base_query, db, pagination, filters, floor_id, room_id, bed_id, final_residence_id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/app/routers/residents.py", line 110, in paginate_query_residents
+    total = await db.scalar(count_query)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/ext/asyncio/session.py", line 517, in scalar
+    return await greenlet_spawn(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 201, in greenlet_spawn
+    result = context.throw(*sys.exc_info())
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2410, in scalar
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2247, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/orm/context.py", line 293, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1418, in execute
+    return meth(
+           ^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 515, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1640, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2355, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 572, in execute
+    self._adapt_connection.await_(
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 550, in _prepare_and_execute
+    self._handle_exception(error)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 501, in _handle_exception
+    self._adapt_connection._handle_exception(error)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 784, in _handle_exception
+    raise translated_error from error
+sqlalchemy.exc.ProgrammingError: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.DuplicateAliasError'>: table name "bed" specified more than once
+[SQL: SELECT count(resident.id) AS count_1 
+FROM resident JOIN bed ON resident.bed_id = bed.id JOIN bed ON resident.bed_id = bed.id JOIN room ON bed.room_id = room.id 
+WHERE bed.room_id = $1::UUID AND room.floor_id = $2::UUID AND resident.residence_id = $3::UUID]
+[parameters: ('85b1b1cd-7f5b-4bef-af5f-7464013cbe79', '1a742099-ea19-48d6-9365-945c2b8390a3', '79e60bed-1690-4c4e-b182-dad64e4668a3')]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+INFO:     GET /structure/beds/85b1b1cd-7f5b-4bef-af5f-7464013cbe79/simple -> 200 (38.9 ms)
+INFO:     127.0.0.1:60494 - "GET /structure/beds/85b1b1cd-7f5b-4bef-af5f-7464013cbe79/simple HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.3 ms)
+INFO:     127.0.0.1:60494 - "OPTIONS /residents/?floor_id=1a742099-ea19-48d6-9365-945c2b8390a3&room_id=85b1b1cd-7f5b-4bef-af5f-7464013cbe79&bed_id=e863b3c2-2b8e-4ba9-a475-e8e56b4c14a6&residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60494 - "GET /residents/?floor_id=1a742099-ea19-48d6-9365-945c2b8390a3&room_id=85b1b1cd-7f5b-4bef-af5f-7464013cbe79&bed_id=e863b3c2-2b8e-4ba9-a475-e8e56b4c14a6&residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 514, in _prepare_and_execute
+    prepared_stmt, attributes = await adapt_connection._prepare(
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 760, in _prepare
+    prepared_stmt = await self._connection.prepare(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/asyncpg/connection.py", line 636, in prepare
+    return await self._prepare(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/asyncpg/connection.py", line 654, in _prepare
+    stmt = await self._get_statement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/asyncpg/connection.py", line 433, in _get_statement
+    statement = await self._protocol.prepare(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "asyncpg/protocol/protocol.pyx", line 166, in prepare
+asyncpg.exceptions.DuplicateAliasError: table name "bed" specified more than once
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 572, in execute
+    self._adapt_connection.await_(
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 550, in _prepare_and_execute
+    self._handle_exception(error)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 501, in _handle_exception
+    self._adapt_connection._handle_exception(error)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 784, in _handle_exception
+    raise translated_error from error
+sqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_dbapi.ProgrammingError: <class 'asyncpg.exceptions.DuplicateAliasError'>: table name "bed" specified more than once
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/uvicorn/protocols/http/httptools_impl.py", line 409, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/fastapi/applications.py", line 1054, in __call__
+    await super().__call__(scope, receive, send)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/applications.py", line 113, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/middleware/errors.py", line 186, in __call__
+    raise exc
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/middleware/base.py", line 182, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.11/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/_utils.py", line 85, in collapse_excgroups
+    raise exc
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/middleware/base.py", line 184, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/app/middlewares.py", line 22, in timing
+    resp = await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/middleware/base.py", line 159, in call_next
+    raise app_exc
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/middleware/cors.py", line 93, in __call__
+    await self.simple_response(scope, receive, send, request_headers=headers)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/middleware/cors.py", line 144, in simple_response
+    await self.app(scope, receive, send)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/routing.py", line 78, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/starlette/routing.py", line 75, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/fastapi/routing.py", line 302, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/fastapi/routing.py", line 213, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/app/routers/residents.py", line 232, in list_residents
+    return await paginate_query_residents(base_query, db, pagination, filters, floor_id, room_id, bed_id, final_residence_id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/app/routers/residents.py", line 110, in paginate_query_residents
+    total = await db.scalar(count_query)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/ext/asyncio/session.py", line 517, in scalar
+    return await greenlet_spawn(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 201, in greenlet_spawn
+    result = context.throw(*sys.exc_info())
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2410, in scalar
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2247, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/orm/context.py", line 293, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1418, in execute
+    return meth(
+           ^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 515, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1640, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2355, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 572, in execute
+    self._adapt_connection.await_(
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 550, in _prepare_and_execute
+    self._handle_exception(error)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 501, in _handle_exception
+    self._adapt_connection._handle_exception(error)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 784, in _handle_exception
+    raise translated_error from error
+sqlalchemy.exc.ProgrammingError: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.DuplicateAliasError'>: table name "bed" specified more than once
+[SQL: SELECT count(resident.id) AS count_1 
+FROM resident JOIN bed ON resident.bed_id = bed.id JOIN bed ON resident.bed_id = bed.id JOIN room ON bed.room_id = room.id 
+WHERE resident.bed_id = $1::UUID AND bed.room_id = $2::UUID AND room.floor_id = $3::UUID AND resident.residence_id = $4::UUID]
+[parameters: ('e863b3c2-2b8e-4ba9-a475-e8e56b4c14a6', '85b1b1cd-7f5b-4bef-af5f-7464013cbe79', '1a742099-ea19-48d6-9365-945c2b8390a3', '79e60bed-1690-4c4e-b182-dad64e4668a3')]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+WARNING:  WatchFiles detected changes in 'app/routers/residents.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [8964]
+INFO:     Started server process [82321]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/routers/residents.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [82321]
+INFO:     Started server process [82511]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/routers/residents.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [82511]
+INFO:     Started server process [82718]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     OPTIONS /residences/mine -> 200 (0.9 ms)
+INFO:     127.0.0.1:61355 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (1.9 ms)
+INFO:     127.0.0.1:61356 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (0.2 ms)
+INFO:     127.0.0.1:61357 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.4 ms)
+INFO:     127.0.0.1:61358 - "OPTIONS /residents/?residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (49.4 ms)
+INFO:     127.0.0.1:61356 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (53.1 ms)
+INFO:     127.0.0.1:61358 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (104.4 ms)
+INFO:     127.0.0.1:61357 - "GET /residents/?residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (131.9 ms)
+INFO:     127.0.0.1:61355 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.2 ms)
+INFO:     127.0.0.1:61385 - "OPTIONS /residents/?residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=50 HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (22.9 ms)
+INFO:     127.0.0.1:61385 - "GET /residents/?residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=50 HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (0.7 ms)
+INFO:     127.0.0.1:61444 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (1.4 ms)
+INFO:     127.0.0.1:61445 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (15.1 ms)
+INFO:     127.0.0.1:61445 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (0.7 ms)
+INFO:     127.0.0.1:61445 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (1.0 ms)
+INFO:     127.0.0.1:61446 - "OPTIONS /residents/?residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (72.3 ms)
+INFO:     127.0.0.1:61446 - "GET /residents/?residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (84.4 ms)
+INFO:     127.0.0.1:61445 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (125.5 ms)
+INFO:     127.0.0.1:61444 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (3.6 ms)
+INFO:     127.0.0.1:61828 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (4.7 ms)
+INFO:     127.0.0.1:61829 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (4.4 ms)
+INFO:     127.0.0.1:61830 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (1.8 ms)
+INFO:     127.0.0.1:61831 - "OPTIONS /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (41.5 ms)
+INFO:     127.0.0.1:61828 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (64.2 ms)
+INFO:     127.0.0.1:61830 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (114.1 ms)
+INFO:     127.0.0.1:61832 - "GET /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (206.6 ms)
+INFO:     127.0.0.1:61829 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /auth/login -> 200 (1.0 ms)
+INFO:     127.0.0.1:62584 - "OPTIONS /auth/login HTTP/1.1" 200 OK
+INFO:     POST /auth/login -> 200 (317.4 ms)
+INFO:     127.0.0.1:62584 - "POST /auth/login HTTP/1.1" 200 OK
+INFO:     OPTIONS /auth/me -> 200 (0.1 ms)
+INFO:     127.0.0.1:62584 - "OPTIONS /auth/me HTTP/1.1" 200 OK
+INFO:     GET /auth/me -> 200 (0.5 ms)
+INFO:     127.0.0.1:62584 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     OPTIONS /auth/me -> 200 (0.1 ms)
+INFO:     127.0.0.1:62584 - "OPTIONS /auth/me HTTP/1.1" 200 OK
+INFO:     GET /auth/me -> 200 (0.6 ms)
+INFO:     127.0.0.1:62584 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (0.9 ms)
+INFO:     127.0.0.1:62584 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (1.0 ms)
+INFO:     127.0.0.1:62585 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /auth/me -> 200 (1.0 ms)
+INFO:     127.0.0.1:62590 - "OPTIONS /auth/me HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (17.0 ms)
+INFO:     127.0.0.1:62585 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /auth/me -> 200 (4.2 ms)
+INFO:     127.0.0.1:62590 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (0.1 ms)
+INFO:     127.0.0.1:62590 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (2.9 ms)
+INFO:     127.0.0.1:62585 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (65.4 ms)
+INFO:     127.0.0.1:62584 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (0.2 ms)
+INFO:     127.0.0.1:62584 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/task-categories -> 200 (0.1 ms)
+INFO:     127.0.0.1:62585 - "OPTIONS /dashboard/task-categories HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/new-residents/stats -> 200 (0.9 ms)
+INFO:     127.0.0.1:62590 - "OPTIONS /dashboard/new-residents/stats HTTP/1.1" 200 OK
+INFO:     GET /dashboard/new-residents/stats -> 200 (14.6 ms)
+INFO:     127.0.0.1:62590 - "GET /dashboard/new-residents/stats HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (33.8 ms)
+INFO:     127.0.0.1:62584 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     GET /dashboard/task-categories -> 200 (204.2 ms)
+INFO:     127.0.0.1:62585 - "GET /dashboard/task-categories HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (1.3 ms)
+INFO:     127.0.0.1:62585 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (2.0 ms)
+INFO:     127.0.0.1:62584 - "OPTIONS /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (47.7 ms)
+INFO:     127.0.0.1:62584 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (57.0 ms)
+INFO:     127.0.0.1:62585 - "GET /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.2 ms)
+INFO:     127.0.0.1:62641 - "OPTIONS /residents/?residence_id=d93c67f3-b8c2-4174-b24d-7863261c63e0&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/floors/d93c67f3-b8c2-4174-b24d-7863261c63e0/simple -> 200 (0.5 ms)
+INFO:     127.0.0.1:62641 - "OPTIONS /structure/floors/d93c67f3-b8c2-4174-b24d-7863261c63e0/simple HTTP/1.1" 200 OK
+INFO:     GET /structure/floors/d93c67f3-b8c2-4174-b24d-7863261c63e0/simple -> 200 (10.8 ms)
+INFO:     127.0.0.1:62641 - "GET /structure/floors/d93c67f3-b8c2-4174-b24d-7863261c63e0/simple HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (0.7 ms)
+INFO:     127.0.0.1:62643 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (4.3 ms)
+INFO:     127.0.0.1:62641 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (23.4 ms)
+INFO:     127.0.0.1:62642 - "GET /residents/?residence_id=d93c67f3-b8c2-4174-b24d-7863261c63e0&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.2 ms)
+INFO:     127.0.0.1:62693 - "OPTIONS /residents/?floor_id=d175a47e-6aa6-4303-b80d-b0d5ed5c2805&residence_id=d93c67f3-b8c2-4174-b24d-7863261c63e0&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/rooms/d175a47e-6aa6-4303-b80d-b0d5ed5c2805/simple -> 200 (0.8 ms)
+INFO:     127.0.0.1:62694 - "OPTIONS /structure/rooms/d175a47e-6aa6-4303-b80d-b0d5ed5c2805/simple HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (17.8 ms)
+INFO:     127.0.0.1:62693 - "GET /residents/?floor_id=d175a47e-6aa6-4303-b80d-b0d5ed5c2805&residence_id=d93c67f3-b8c2-4174-b24d-7863261c63e0&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /structure/rooms/d175a47e-6aa6-4303-b80d-b0d5ed5c2805/simple -> 200 (14.3 ms)
+INFO:     127.0.0.1:62694 - "GET /structure/rooms/d175a47e-6aa6-4303-b80d-b0d5ed5c2805/simple HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (1.0 ms)
+INFO:     127.0.0.1:62816 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (1.4 ms)
+INFO:     127.0.0.1:62817 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (12.5 ms)
+INFO:     127.0.0.1:62817 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (0.4 ms)
+INFO:     127.0.0.1:62817 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.3 ms)
+INFO:     127.0.0.1:62818 - "OPTIONS /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (12.5 ms)
+INFO:     127.0.0.1:62817 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (42.1 ms)
+INFO:     127.0.0.1:62816 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (22.4 ms)
+INFO:     127.0.0.1:62819 - "GET /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.4 ms)
+INFO:     127.0.0.1:62819 - "OPTIONS /residents/?residence_id=d93c67f3-b8c2-4174-b24d-7863261c63e0&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/floors/d93c67f3-b8c2-4174-b24d-7863261c63e0/simple -> 200 (0.6 ms)
+INFO:     127.0.0.1:62816 - "OPTIONS /structure/floors/d93c67f3-b8c2-4174-b24d-7863261c63e0/simple HTTP/1.1" 200 OK
+INFO:     GET /structure/floors/d93c67f3-b8c2-4174-b24d-7863261c63e0/simple -> 200 (8.9 ms)
+INFO:     127.0.0.1:62819 - "GET /structure/floors/d93c67f3-b8c2-4174-b24d-7863261c63e0/simple HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (12.6 ms)
+INFO:     127.0.0.1:62816 - "GET /residents/?residence_id=d93c67f3-b8c2-4174-b24d-7863261c63e0&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.2 ms)
+INFO:     127.0.0.1:62878 - "OPTIONS /residents/?floor_id=d175a47e-6aa6-4303-b80d-b0d5ed5c2805&residence_id=d93c67f3-b8c2-4174-b24d-7863261c63e0&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/rooms/d175a47e-6aa6-4303-b80d-b0d5ed5c2805/simple -> 200 (0.5 ms)
+INFO:     127.0.0.1:62878 - "OPTIONS /structure/rooms/d175a47e-6aa6-4303-b80d-b0d5ed5c2805/simple HTTP/1.1" 200 OK
+INFO:     GET /structure/rooms/d175a47e-6aa6-4303-b80d-b0d5ed5c2805/simple -> 200 (6.9 ms)
+INFO:     127.0.0.1:62878 - "GET /structure/rooms/d175a47e-6aa6-4303-b80d-b0d5ed5c2805/simple HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (12.7 ms)
+INFO:     127.0.0.1:62879 - "GET /residents/?floor_id=d175a47e-6aa6-4303-b80d-b0d5ed5c2805&residence_id=d93c67f3-b8c2-4174-b24d-7863261c63e0&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (2.5 ms)
+INFO:     127.0.0.1:63618 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (2.5 ms)
+INFO:     127.0.0.1:63619 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (1.8 ms)
+INFO:     127.0.0.1:63620 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (1.2 ms)
+INFO:     127.0.0.1:63621 - "OPTIONS /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (40.3 ms)
+INFO:     127.0.0.1:63619 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (61.5 ms)
+INFO:     127.0.0.1:63621 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (68.9 ms)
+INFO:     127.0.0.1:63620 - "GET /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (163.5 ms)
+INFO:     127.0.0.1:63618 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'app/routers/residents.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [82718]
+INFO:     Started server process [96903]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/routers/residents.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [96903]
+INFO:     Started server process [97049]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/routers/residents.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [97049]
+INFO:     Started server process [4662]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/routers/residents.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [4662]
+INFO:     Started server process [4783]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     OPTIONS /residences/mine -> 200 (6.0 ms)
+INFO:     127.0.0.1:65182 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (2.9 ms)
+INFO:     127.0.0.1:65183 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (3.1 ms)
+INFO:     127.0.0.1:65184 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (1.3 ms)
+INFO:     127.0.0.1:65185 - "OPTIONS /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (183.3 ms)
+INFO:     127.0.0.1:65184 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (178.9 ms)
+INFO:     127.0.0.1:65182 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (195.9 ms)
+INFO:     127.0.0.1:65183 - "GET /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (245.7 ms)
+INFO:     127.0.0.1:65185 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (1.1 ms)
+INFO:     127.0.0.1:49706 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (7.0 ms)
+INFO:     127.0.0.1:49707 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (8.1 ms)
+INFO:     127.0.0.1:49708 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (1.9 ms)
+INFO:     127.0.0.1:49709 - "OPTIONS /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (263.8 ms)
+INFO:     127.0.0.1:49709 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (216.2 ms)
+INFO:     127.0.0.1:49706 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (228.5 ms)
+INFO:     127.0.0.1:49707 - "GET /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (290.1 ms)
+INFO:     127.0.0.1:49708 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.2 ms)
+INFO:     127.0.0.1:49708 - "OPTIONS /residents/?residence_id=2394eef0-5928-4892-8a2b-8b2909787975&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/floors/2394eef0-5928-4892-8a2b-8b2909787975/simple -> 200 (0.3 ms)
+INFO:     127.0.0.1:49707 - "OPTIONS /structure/floors/2394eef0-5928-4892-8a2b-8b2909787975/simple HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (3.1 ms)
+INFO:     127.0.0.1:49706 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /structure/floors/2394eef0-5928-4892-8a2b-8b2909787975/simple -> 200 (12.8 ms)
+INFO:     127.0.0.1:49707 - "GET /structure/floors/2394eef0-5928-4892-8a2b-8b2909787975/simple HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (4.5 ms)
+INFO:     127.0.0.1:49709 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (37.9 ms)
+INFO:     127.0.0.1:49708 - "GET /residents/?residence_id=2394eef0-5928-4892-8a2b-8b2909787975&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.3 ms)
+INFO:     127.0.0.1:49759 - "OPTIONS /residents/?floor_id=893b1a9b-ff91-4b52-b641-f4182ceed3e0&residence_id=2394eef0-5928-4892-8a2b-8b2909787975&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/rooms/893b1a9b-ff91-4b52-b641-f4182ceed3e0/simple -> 200 (0.3 ms)
+INFO:     127.0.0.1:49760 - "OPTIONS /structure/rooms/893b1a9b-ff91-4b52-b641-f4182ceed3e0/simple HTTP/1.1" 200 OK
+INFO:     GET /structure/rooms/893b1a9b-ff91-4b52-b641-f4182ceed3e0/simple -> 200 (13.8 ms)
+INFO:     127.0.0.1:49760 - "GET /structure/rooms/893b1a9b-ff91-4b52-b641-f4182ceed3e0/simple HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (23.1 ms)
+INFO:     127.0.0.1:49759 - "GET /residents/?floor_id=893b1a9b-ff91-4b52-b641-f4182ceed3e0&residence_id=2394eef0-5928-4892-8a2b-8b2909787975&page=1&size=10 HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'fix_unique_names.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [4783]
+INFO:     Started server process [18264]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'fix_unique_names.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [18264]
+INFO:     Started server process [21570]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'fix_names_simple.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [21570]
+INFO:     Started server process [22630]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'fix_names_cte.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [22630]
+INFO:     Started server process [24225]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/exceptions.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [24225]
+INFO:     Started server process [40788]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [40788]
+INFO:     Started server process [40925]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [40925]
+INFO:     Started server process [41030]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     OPTIONS /residences/mine -> 200 (4.8 ms)
+INFO:     127.0.0.1:56620 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (3.1 ms)
+INFO:     127.0.0.1:56621 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (4.1 ms)
+INFO:     127.0.0.1:56622 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (23.4 ms)
+INFO:     127.0.0.1:56623 - "OPTIONS /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (103.5 ms)
+INFO:     127.0.0.1:56620 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (93.3 ms)
+INFO:     127.0.0.1:56621 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (110.4 ms)
+INFO:     127.0.0.1:56622 - "GET /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (140.9 ms)
+INFO:     127.0.0.1:56624 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.3 ms)
+INFO:     127.0.0.1:56624 - "OPTIONS /residents/?residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/floors/79e60bed-1690-4c4e-b182-dad64e4668a3/simple -> 200 (0.3 ms)
+INFO:     127.0.0.1:56622 - "OPTIONS /structure/floors/79e60bed-1690-4c4e-b182-dad64e4668a3/simple HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (3.2 ms)
+INFO:     127.0.0.1:56621 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /structure/floors/79e60bed-1690-4c4e-b182-dad64e4668a3/simple -> 200 (80.8 ms)
+INFO:     127.0.0.1:56624 - "GET /structure/floors/79e60bed-1690-4c4e-b182-dad64e4668a3/simple HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (76.7 ms)
+INFO:     127.0.0.1:56621 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (101.1 ms)
+INFO:     127.0.0.1:56622 - "GET /residents/?residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.2 ms)
+INFO:     127.0.0.1:56651 - "OPTIONS /residents/?floor_id=ac8ea558-a6af-45da-a2b5-70ac0ba9f823&residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/rooms/ac8ea558-a6af-45da-a2b5-70ac0ba9f823/simple -> 200 (0.8 ms)
+INFO:     127.0.0.1:56651 - "OPTIONS /structure/rooms/ac8ea558-a6af-45da-a2b5-70ac0ba9f823/simple HTTP/1.1" 200 OK
+INFO:     GET /structure/rooms/ac8ea558-a6af-45da-a2b5-70ac0ba9f823/simple -> 200 (22.0 ms)
+INFO:     127.0.0.1:56651 - "GET /structure/rooms/ac8ea558-a6af-45da-a2b5-70ac0ba9f823/simple HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (36.1 ms)
+INFO:     127.0.0.1:56652 - "GET /residents/?floor_id=ac8ea558-a6af-45da-a2b5-70ac0ba9f823&residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (1.0 ms)
+INFO:     127.0.0.1:56652 - "OPTIONS /residents/?residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (22.8 ms)
+INFO:     127.0.0.1:56652 - "GET /residents/?residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.3 ms)
+INFO:     127.0.0.1:56699 - "OPTIONS /residents/?floor_id=1a742099-ea19-48d6-9365-945c2b8390a3&residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/rooms/1a742099-ea19-48d6-9365-945c2b8390a3/simple -> 200 (1.8 ms)
+INFO:     127.0.0.1:56700 - "OPTIONS /structure/rooms/1a742099-ea19-48d6-9365-945c2b8390a3/simple HTTP/1.1" 200 OK
+INFO:     GET /structure/rooms/1a742099-ea19-48d6-9365-945c2b8390a3/simple -> 200 (10.8 ms)
+INFO:     127.0.0.1:56700 - "GET /structure/rooms/1a742099-ea19-48d6-9365-945c2b8390a3/simple HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (17.1 ms)
+INFO:     127.0.0.1:56699 - "GET /residents/?floor_id=1a742099-ea19-48d6-9365-945c2b8390a3&residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.2 ms)
+INFO:     127.0.0.1:56731 - "OPTIONS /residents/?floor_id=ff55f5cb-6bdb-49b1-8570-b5524851f404&residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/rooms/ff55f5cb-6bdb-49b1-8570-b5524851f404/simple -> 200 (0.9 ms)
+INFO:     127.0.0.1:56731 - "OPTIONS /structure/rooms/ff55f5cb-6bdb-49b1-8570-b5524851f404/simple HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (39.6 ms)
+INFO:     127.0.0.1:56732 - "GET /residents/?floor_id=ff55f5cb-6bdb-49b1-8570-b5524851f404&residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /structure/rooms/ff55f5cb-6bdb-49b1-8570-b5524851f404/simple -> 200 (38.2 ms)
+INFO:     127.0.0.1:56731 - "GET /structure/rooms/ff55f5cb-6bdb-49b1-8570-b5524851f404/simple HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (2.1 ms)
+INFO:     127.0.0.1:57882 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (3.0 ms)
+INFO:     127.0.0.1:57883 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (0.3 ms)
+INFO:     127.0.0.1:57884 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.9 ms)
+INFO:     127.0.0.1:57885 - "OPTIONS /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (47.4 ms)
+INFO:     127.0.0.1:57883 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (32.0 ms)
+INFO:     127.0.0.1:57885 - "GET /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (36.6 ms)
+INFO:     127.0.0.1:57884 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (124.7 ms)
+INFO:     127.0.0.1:57882 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.2 ms)
+INFO:     127.0.0.1:57898 - "OPTIONS /residents/?residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/floors/79e60bed-1690-4c4e-b182-dad64e4668a3/simple -> 200 (0.2 ms)
+INFO:     127.0.0.1:57899 - "OPTIONS /structure/floors/79e60bed-1690-4c4e-b182-dad64e4668a3/simple HTTP/1.1" 200 OK
+INFO:     GET /structure/floors/79e60bed-1690-4c4e-b182-dad64e4668a3/simple -> 200 (10.3 ms)
+INFO:     127.0.0.1:57899 - "GET /structure/floors/79e60bed-1690-4c4e-b182-dad64e4668a3/simple HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (16.2 ms)
+INFO:     127.0.0.1:57898 - "GET /residents/?residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.4 ms)
+INFO:     127.0.0.1:57922 - "OPTIONS /residents/?floor_id=ac8ea558-a6af-45da-a2b5-70ac0ba9f823&residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/rooms/ac8ea558-a6af-45da-a2b5-70ac0ba9f823/simple -> 200 (0.4 ms)
+INFO:     127.0.0.1:57923 - "OPTIONS /structure/rooms/ac8ea558-a6af-45da-a2b5-70ac0ba9f823/simple HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (12.9 ms)
+INFO:     127.0.0.1:57922 - "GET /residents/?floor_id=ac8ea558-a6af-45da-a2b5-70ac0ba9f823&residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /structure/rooms/ac8ea558-a6af-45da-a2b5-70ac0ba9f823/simple -> 200 (11.2 ms)
+INFO:     127.0.0.1:57923 - "GET /structure/rooms/ac8ea558-a6af-45da-a2b5-70ac0ba9f823/simple HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.3 ms)
+INFO:     127.0.0.1:57950 - "OPTIONS /residents/?floor_id=1a742099-ea19-48d6-9365-945c2b8390a3&residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/rooms/1a742099-ea19-48d6-9365-945c2b8390a3/simple -> 200 (0.2 ms)
+INFO:     127.0.0.1:57950 - "OPTIONS /structure/rooms/1a742099-ea19-48d6-9365-945c2b8390a3/simple HTTP/1.1" 200 OK
+INFO:     GET /structure/rooms/1a742099-ea19-48d6-9365-945c2b8390a3/simple -> 200 (8.1 ms)
+INFO:     127.0.0.1:57950 - "GET /structure/rooms/1a742099-ea19-48d6-9365-945c2b8390a3/simple HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (34.0 ms)
+INFO:     127.0.0.1:57951 - "GET /residents/?floor_id=1a742099-ea19-48d6-9365-945c2b8390a3&residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.2 ms)
+INFO:     127.0.0.1:57951 - "OPTIONS /residents/?floor_id=ac8ea558-a6af-45da-a2b5-70ac0ba9f823&residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/rooms/ac8ea558-a6af-45da-a2b5-70ac0ba9f823/simple -> 200 (0.9 ms)
+INFO:     127.0.0.1:57951 - "OPTIONS /structure/rooms/ac8ea558-a6af-45da-a2b5-70ac0ba9f823/simple HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (11.5 ms)
+INFO:     127.0.0.1:57950 - "GET /residents/?floor_id=ac8ea558-a6af-45da-a2b5-70ac0ba9f823&residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /structure/rooms/ac8ea558-a6af-45da-a2b5-70ac0ba9f823/simple -> 200 (8.0 ms)
+INFO:     127.0.0.1:57951 - "GET /structure/rooms/ac8ea558-a6af-45da-a2b5-70ac0ba9f823/simple HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.2 ms)
+INFO:     127.0.0.1:57951 - "OPTIONS /residents/?floor_id=ff55f5cb-6bdb-49b1-8570-b5524851f404&residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/rooms/ff55f5cb-6bdb-49b1-8570-b5524851f404/simple -> 200 (0.4 ms)
+INFO:     127.0.0.1:57950 - "OPTIONS /structure/rooms/ff55f5cb-6bdb-49b1-8570-b5524851f404/simple HTTP/1.1" 200 OK
+INFO:     GET /structure/rooms/ff55f5cb-6bdb-49b1-8570-b5524851f404/simple -> 200 (6.9 ms)
+INFO:     127.0.0.1:57950 - "GET /structure/rooms/ff55f5cb-6bdb-49b1-8570-b5524851f404/simple HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (11.2 ms)
+INFO:     127.0.0.1:57951 - "GET /residents/?floor_id=ff55f5cb-6bdb-49b1-8570-b5524851f404&residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.2 ms)
+INFO:     127.0.0.1:57951 - "OPTIONS /residents/?floor_id=b21a00dc-7219-4f2b-821c-c662014d2ee1&residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/rooms/b21a00dc-7219-4f2b-821c-c662014d2ee1/simple -> 200 (0.8 ms)
+INFO:     127.0.0.1:57951 - "OPTIONS /structure/rooms/b21a00dc-7219-4f2b-821c-c662014d2ee1/simple HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (10.6 ms)
+INFO:     127.0.0.1:57950 - "GET /residents/?floor_id=b21a00dc-7219-4f2b-821c-c662014d2ee1&residence_id=79e60bed-1690-4c4e-b182-dad64e4668a3&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /structure/rooms/b21a00dc-7219-4f2b-821c-c662014d2ee1/simple -> 200 (6.7 ms)
+INFO:     127.0.0.1:57951 - "GET /structure/rooms/b21a00dc-7219-4f2b-821c-c662014d2ee1/simple HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'seed_database.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [41030]
+INFO:     Started server process [62911]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     OPTIONS /residences/mine -> 200 (0.8 ms)
+INFO:     127.0.0.1:61513 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (2.5 ms)
+INFO:     127.0.0.1:61514 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (0.7 ms)
+INFO:     127.0.0.1:61515 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (2.0 ms)
+INFO:     127.0.0.1:61516 - "OPTIONS /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (142.6 ms)
+INFO:     127.0.0.1:61517 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (183.0 ms)
+INFO:     127.0.0.1:61514 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (152.2 ms)
+INFO:     127.0.0.1:61516 - "GET /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (257.1 ms)
+INFO:     127.0.0.1:61513 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'seed_database.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [62911]
+INFO:     Started server process [79105]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'seed_database.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [79105]
+INFO:     Started server process [82338]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'seed_database.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [82338]
+INFO:     Started server process [83912]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'seed_database.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [83912]
+INFO:     Started server process [85336]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'seed_database.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [85336]
+INFO:     Started server process [86657]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'seed_database.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [86657]
+INFO:     Started server process [88382]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'seed_database.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [88382]
+INFO:     Started server process [89178]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'seed_database.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [89178]
+INFO:     Started server process [91390]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'seed_database.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [91390]
+INFO:     Started server process [93448]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'seed_database.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [93448]
+INFO:     Started server process [96802]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     OPTIONS /residences/mine -> 200 (0.7 ms)
+INFO:     127.0.0.1:49912 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (1.5 ms)
+INFO:     127.0.0.1:49913 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (2.4 ms)
+INFO:     127.0.0.1:49914 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.7 ms)
+INFO:     127.0.0.1:49915 - "OPTIONS /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (66.6 ms)
+INFO:     127.0.0.1:49912 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (62.2 ms)
+INFO:     127.0.0.1:49918 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (104.0 ms)
+INFO:     127.0.0.1:49915 - "GET /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (168.3 ms)
+INFO:     127.0.0.1:49913 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'seed_database.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [96802]
+INFO:     Started server process [98428]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'seed_database.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [98428]
+INFO:     Started server process [99128]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'seed_database.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [99128]
+INFO:     Started server process [99767]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'seed_database.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [99767]
+INFO:     Started server process [2185]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'seed_database.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [2185]
+INFO:     Started server process [4781]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'seed_database.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [4781]
+INFO:     Started server process [5501]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'seed_database.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [5501]
+INFO:     Started server process [7689]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     OPTIONS /auth/login -> 200 (8.9 ms)
+INFO:     127.0.0.1:62259 - "OPTIONS /auth/login HTTP/1.1" 200 OK
+HTTP Exception: 401 - Invalid credentials
+INFO:     POST /auth/login -> 401 (345.8 ms)
+INFO:     127.0.0.1:62260 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     OPTIONS /auth/login -> 200 (0.4 ms)
+INFO:     127.0.0.1:62317 - "OPTIONS /auth/login HTTP/1.1" 200 OK
+HTTP Exception: 401 - Invalid credentials
+INFO:     POST /auth/login -> 401 (8.4 ms)
+INFO:     127.0.0.1:62317 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+WARNING:  WatchFiles detected changes in 'setup_users.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [7689]
+INFO:     Started server process [84327]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     OPTIONS /auth/login -> 200 (0.8 ms)
+INFO:     127.0.0.1:52484 - "OPTIONS /auth/login HTTP/1.1" 200 OK
+HTTP Exception: 401 - Invalid credentials
+INFO:     POST /auth/login -> 401 (349.6 ms)
+INFO:     127.0.0.1:52484 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     OPTIONS /auth/login -> 200 (51.4 ms)
+INFO:     127.0.0.1:52650 - "OPTIONS /auth/login HTTP/1.1" 200 OK
+HTTP Exception: 401 - Invalid credentials
+INFO:     POST /auth/login -> 401 (98.3 ms)
+INFO:     127.0.0.1:52655 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+WARNING:  WatchFiles detected changes in 'setup_users.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [84327]
+INFO:     Started server process [90830]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'setup_users.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [90830]
+INFO:     Started server process [93482]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'setup_users.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [93482]
+INFO:     Started server process [96276]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     OPTIONS /auth/login -> 200 (49.8 ms)
+INFO:     127.0.0.1:55182 - "OPTIONS /auth/login HTTP/1.1" 200 OK
+HTTP Exception: 401 - Invalid credentials
+INFO:     POST /auth/login -> 401 (650.7 ms)
+INFO:     127.0.0.1:55182 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     OPTIONS /auth/login -> 200 (0.8 ms)
+INFO:     127.0.0.1:55869 - "OPTIONS /auth/login HTTP/1.1" 200 OK
+HTTP Exception: 401 - Invalid credentials
+INFO:     POST /auth/login -> 401 (329.1 ms)
+INFO:     127.0.0.1:55869 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     OPTIONS /auth/login -> 200 (1.7 ms)
+INFO:     127.0.0.1:56911 - "OPTIONS /auth/login HTTP/1.1" 200 OK
+INFO:     POST /auth/login -> 200 (373.3 ms)
+INFO:     127.0.0.1:56911 - "POST /auth/login HTTP/1.1" 200 OK
+INFO:     OPTIONS /auth/me -> 200 (0.1 ms)
+INFO:     127.0.0.1:56911 - "OPTIONS /auth/me HTTP/1.1" 200 OK
+INFO:     GET /auth/me -> 200 (0.6 ms)
+INFO:     127.0.0.1:56911 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (14.5 ms)
+INFO:     127.0.0.1:56911 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (12.2 ms)
+INFO:     127.0.0.1:56926 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /auth/me -> 200 (6.1 ms)
+INFO:     127.0.0.1:56927 - "OPTIONS /auth/me HTTP/1.1" 200 OK
+INFO:     GET /auth/me -> 200 (0.3 ms)
+INFO:     127.0.0.1:56911 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (65.7 ms)
+INFO:     127.0.0.1:56928 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (114.3 ms)
+INFO:     127.0.0.1:56926 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (0.3 ms)
+INFO:     127.0.0.1:56926 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/task-categories -> 200 (1.0 ms)
+INFO:     127.0.0.1:56928 - "OPTIONS /dashboard/task-categories HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/new-residents/stats -> 200 (1.1 ms)
+INFO:     127.0.0.1:56911 - "OPTIONS /dashboard/new-residents/stats HTTP/1.1" 200 OK
+INFO:     GET /dashboard/task-categories -> 200 (7.5 ms)
+INFO:     127.0.0.1:56928 - "GET /dashboard/task-categories HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (25.6 ms)
+INFO:     127.0.0.1:56926 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     GET /dashboard/new-residents/stats -> 200 (28.5 ms)
+INFO:     127.0.0.1:56911 - "GET /dashboard/new-residents/stats HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (0.3 ms)
+INFO:     127.0.0.1:56911 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/beds -> 200 (4.5 ms)
+INFO:     127.0.0.1:56911 - "OPTIONS /structure/beds?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (85.2 ms)
+INFO:     127.0.0.1:56926 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /structure/beds -> 200 (92.7 ms)
+INFO:     127.0.0.1:56911 - "GET /structure/beds?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (0.3 ms)
+INFO:     127.0.0.1:56911 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.9 ms)
+INFO:     127.0.0.1:56926 - "OPTIONS /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (31.9 ms)
+INFO:     127.0.0.1:56911 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (50.4 ms)
+INFO:     127.0.0.1:56926 - "GET /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.2 ms)
+INFO:     127.0.0.1:56971 - "OPTIONS /residents/?residence_id=3332a43e-60bd-4b9e-a06d-d50eac136938&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/floors/3332a43e-60bd-4b9e-a06d-d50eac136938/simple -> 200 (0.5 ms)
+INFO:     127.0.0.1:56972 - "OPTIONS /structure/floors/3332a43e-60bd-4b9e-a06d-d50eac136938/simple HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/mine -> 200 (0.5 ms)
+INFO:     127.0.0.1:56973 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /structure/floors/3332a43e-60bd-4b9e-a06d-d50eac136938/simple -> 200 (19.9 ms)
+INFO:     127.0.0.1:56972 - "GET /structure/floors/3332a43e-60bd-4b9e-a06d-d50eac136938/simple HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (11.7 ms)
+INFO:     127.0.0.1:56973 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (48.4 ms)
+INFO:     127.0.0.1:56971 - "GET /residents/?residence_id=3332a43e-60bd-4b9e-a06d-d50eac136938&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.3 ms)
+INFO:     127.0.0.1:57000 - "OPTIONS /residents/?floor_id=eee156bf-e45d-495f-b82c-20b25e1601ee&residence_id=3332a43e-60bd-4b9e-a06d-d50eac136938&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/rooms/eee156bf-e45d-495f-b82c-20b25e1601ee/simple -> 200 (0.6 ms)
+INFO:     127.0.0.1:57001 - "OPTIONS /structure/rooms/eee156bf-e45d-495f-b82c-20b25e1601ee/simple HTTP/1.1" 200 OK
+INFO:     GET /structure/rooms/eee156bf-e45d-495f-b82c-20b25e1601ee/simple -> 200 (12.8 ms)
+INFO:     127.0.0.1:57001 - "GET /structure/rooms/eee156bf-e45d-495f-b82c-20b25e1601ee/simple HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (34.2 ms)
+INFO:     127.0.0.1:57000 - "GET /residents/?floor_id=eee156bf-e45d-495f-b82c-20b25e1601ee&residence_id=3332a43e-60bd-4b9e-a06d-d50eac136938&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.2 ms)
+INFO:     127.0.0.1:57050 - "OPTIONS /residents/?floor_id=eee156bf-e45d-495f-b82c-20b25e1601ee&room_id=4356ce21-30ed-478b-878e-8bafb6262065&residence_id=3332a43e-60bd-4b9e-a06d-d50eac136938&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/beds/4356ce21-30ed-478b-878e-8bafb6262065/simple -> 200 (2.2 ms)
+INFO:     127.0.0.1:57051 - "OPTIONS /structure/beds/4356ce21-30ed-478b-878e-8bafb6262065/simple HTTP/1.1" 200 OK
+Database Error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.DuplicateAliasError'>: table name "bed" specified more than once
+[SQL: SELECT count(resident.id) AS count_1 
+FROM resident JOIN bed ON resident.bed_id = bed.id JOIN room ON bed.room_id = room.id JOIN bed ON resident.bed_id = bed.id 
+WHERE resident.residence_id = $1::UUID AND room.floor_id = $2::UUID AND bed.room_id = $3::UUID]
+[parameters: ('3332a43e-60bd-4b9e-a06d-d50eac136938', 'eee156bf-e45d-495f-b82c-20b25e1601ee', '4356ce21-30ed-478b-878e-8bafb6262065')]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+INFO:     GET /residents/ -> 500 (13.6 ms)
+INFO:     127.0.0.1:57050 - "GET /residents/?floor_id=eee156bf-e45d-495f-b82c-20b25e1601ee&room_id=4356ce21-30ed-478b-878e-8bafb6262065&residence_id=3332a43e-60bd-4b9e-a06d-d50eac136938&page=1&size=10 HTTP/1.1" 500 Internal Server Error
+INFO:     GET /structure/beds/4356ce21-30ed-478b-878e-8bafb6262065/simple -> 200 (10.6 ms)
+INFO:     127.0.0.1:57051 - "GET /structure/beds/4356ce21-30ed-478b-878e-8bafb6262065/simple HTTP/1.1" 200 OK
+INFO:     POST /auth/login -> 200 (283.6 ms)
+INFO:     127.0.0.1:60320 - "POST /auth/login HTTP/1.1" 200 OK
+Database Error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.DuplicateAliasError'>: table name "bed" specified more than once
+[SQL: SELECT count(resident.id) AS count_1 
+FROM resident JOIN bed ON resident.bed_id = bed.id JOIN room ON bed.room_id = room.id JOIN bed ON resident.bed_id = bed.id 
+WHERE resident.residence_id = $1::UUID AND room.floor_id = $2::UUID AND bed.room_id = $3::UUID]
+[parameters: ('3332a43e-60bd-4b9e-a06d-d50eac136938', 'eee156bf-e45d-495f-b82c-20b25e1601ee', '4356ce21-30ed-478b-878e-8bafb6262065')]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+INFO:     GET /residents/ -> 500 (6.7 ms)
+INFO:     127.0.0.1:60322 - "GET /residents/?floor_id=eee156bf-e45d-495f-b82c-20b25e1601ee&room_id=4356ce21-30ed-478b-878e-8bafb6262065&residence_id=3332a43e-60bd-4b9e-a06d-d50eac136938&page=1&size=10 HTTP/1.1" 500 Internal Server Error
+WARNING:  WatchFiles detected changes in 'app/routers/residents.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [96276]
+INFO:     Started server process [32394]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     OPTIONS /residences/mine -> 200 (0.9 ms)
+INFO:     127.0.0.1:61107 - "OPTIONS /residences/mine HTTP/1.1" 200 OK
+INFO:     OPTIONS /dashboard/navigation-counts -> 200 (2.5 ms)
+INFO:     127.0.0.1:61108 - "OPTIONS /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residences/ -> 200 (1.3 ms)
+INFO:     127.0.0.1:61113 - "OPTIONS /residences/ HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (30.1 ms)
+INFO:     127.0.0.1:61108 - "OPTIONS /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /residences/mine -> 200 (117.6 ms)
+INFO:     127.0.0.1:61107 - "GET /residences/mine HTTP/1.1" 200 OK
+INFO:     GET /residences/ -> 200 (99.3 ms)
+INFO:     127.0.0.1:61113 - "GET /residences/ HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (124.3 ms)
+INFO:     127.0.0.1:61108 - "GET /residents/?page=1&size=10 HTTP/1.1" 200 OK
+INFO:     GET /dashboard/navigation-counts -> 200 (148.3 ms)
+INFO:     127.0.0.1:61114 - "GET /dashboard/navigation-counts HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.5 ms)
+INFO:     127.0.0.1:61129 - "OPTIONS /residents/?residence_id=3332a43e-60bd-4b9e-a06d-d50eac136938&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/floors/3332a43e-60bd-4b9e-a06d-d50eac136938/simple -> 200 (0.3 ms)
+INFO:     127.0.0.1:61130 - "OPTIONS /structure/floors/3332a43e-60bd-4b9e-a06d-d50eac136938/simple HTTP/1.1" 200 OK
+INFO:     GET /structure/floors/3332a43e-60bd-4b9e-a06d-d50eac136938/simple -> 200 (23.7 ms)
+INFO:     127.0.0.1:61129 - "GET /structure/floors/3332a43e-60bd-4b9e-a06d-d50eac136938/simple HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (65.7 ms)
+INFO:     127.0.0.1:61130 - "GET /residents/?residence_id=3332a43e-60bd-4b9e-a06d-d50eac136938&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.2 ms)
+INFO:     127.0.0.1:61130 - "OPTIONS /residents/?floor_id=eee156bf-e45d-495f-b82c-20b25e1601ee&residence_id=3332a43e-60bd-4b9e-a06d-d50eac136938&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/rooms/eee156bf-e45d-495f-b82c-20b25e1601ee/simple -> 200 (0.8 ms)
+INFO:     127.0.0.1:61130 - "OPTIONS /structure/rooms/eee156bf-e45d-495f-b82c-20b25e1601ee/simple HTTP/1.1" 200 OK
+INFO:     GET /structure/rooms/eee156bf-e45d-495f-b82c-20b25e1601ee/simple -> 200 (9.7 ms)
+INFO:     127.0.0.1:61130 - "GET /structure/rooms/eee156bf-e45d-495f-b82c-20b25e1601ee/simple HTTP/1.1" 200 OK
+INFO:     GET /residents/ -> 200 (68.1 ms)
+INFO:     127.0.0.1:61129 - "GET /residents/?floor_id=eee156bf-e45d-495f-b82c-20b25e1601ee&residence_id=3332a43e-60bd-4b9e-a06d-d50eac136938&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /residents/ -> 200 (0.2 ms)
+INFO:     127.0.0.1:61143 - "OPTIONS /residents/?floor_id=eee156bf-e45d-495f-b82c-20b25e1601ee&room_id=4356ce21-30ed-478b-878e-8bafb6262065&residence_id=3332a43e-60bd-4b9e-a06d-d50eac136938&page=1&size=10 HTTP/1.1" 200 OK
+INFO:     OPTIONS /structure/beds/4356ce21-30ed-478b-878e-8bafb6262065/simple -> 200 (0.6 ms)
+INFO:     127.0.0.1:61144 - "OPTIONS /structure/beds/4356ce21-30ed-478b-878e-8bafb6262065/simple HTTP/1.1" 200 OK
+Database Error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.DuplicateAliasError'>: table name "bed" specified more than once
+[SQL: SELECT count(resident.id) AS count_1 
+FROM resident LEFT OUTER JOIN bed ON resident.bed_id = bed.id LEFT OUTER JOIN room ON bed.room_id = room.id LEFT OUTER JOIN floor ON room.floor_id = floor.id LEFT OUTER JOIN bed ON resident.bed_id = bed.id LEFT OUTER JOIN room ON bed.room_id = room.id 
+WHERE resident.residence_id = $1::UUID AND floor.id = $2::UUID AND room.id = $3::UUID]
+[parameters: ('3332a43e-60bd-4b9e-a06d-d50eac136938', 'eee156bf-e45d-495f-b82c-20b25e1601ee', '4356ce21-30ed-478b-878e-8bafb6262065')]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+INFO:     GET /residents/ -> 500 (15.0 ms)
+INFO:     127.0.0.1:61143 - "GET /residents/?floor_id=eee156bf-e45d-495f-b82c-20b25e1601ee&room_id=4356ce21-30ed-478b-878e-8bafb6262065&residence_id=3332a43e-60bd-4b9e-a06d-d50eac136938&page=1&size=10 HTTP/1.1" 500 Internal Server Error
+INFO:     GET /structure/beds/4356ce21-30ed-478b-878e-8bafb6262065/simple -> 200 (12.5 ms)
+INFO:     127.0.0.1:61144 - "GET /structure/beds/4356ce21-30ed-478b-878e-8bafb6262065/simple HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'app/services/permission_service.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [32394]
+INFO:     Started server process [91054]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/routers/residents.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [91054]
+INFO:     Started server process [93473]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/routers/residents.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [93473]
+INFO:     Started server process [96035]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/routers/residents.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [96035]
+INFO:     Started server process [98388]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/routers/residents.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [98388]
+Process SpawnProcess-43:
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.12/3.12.11/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/opt/homebrew/Cellar/python@3.12/3.12.11/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/uvicorn/_subprocess.py", line 80, in subprocess_started
+    target(sockets=sockets)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/uvicorn/server.py", line 67, in run
+    return asyncio.run(self.serve(sockets=sockets))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.11/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.11/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "uvloop/loop.pyx", line 1518, in uvloop.loop.Loop.run_until_complete
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/uvicorn/server.py", line 71, in serve
+    await self._serve(sockets)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/uvicorn/server.py", line 78, in _serve
+    config.load()
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/uvicorn/config.py", line 436, in load
+    self.loaded_app = import_from_string(self.app)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/uvicorn/importer.py", line 19, in import_from_string
+    module = importlib.import_module(module_str)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.11/Frameworks/Python.framework/Versions/3.12/lib/python3.12/importlib/__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 999, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "/Users/joelcespedes/Desktop/residences/back-residence/main.py", line 6, in <module>
+    from app.routers import auth, residences, structure, residents, tags, devices, tasks, measurements, dashboard
+  File "/Users/joelcespedes/Desktop/residences/back-residence/app/routers/residents.py", line 178
+    raise HTTPException(status_code=400, detail="Residence ID is required")
+IndentationError: unexpected indent
+WARNING:  WatchFiles detected changes in 'app/routers/residents.py'. Reloading...
+Process SpawnProcess-44:
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.12/3.12.11/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/opt/homebrew/Cellar/python@3.12/3.12.11/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/uvicorn/_subprocess.py", line 80, in subprocess_started
+    target(sockets=sockets)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/uvicorn/server.py", line 67, in run
+    return asyncio.run(self.serve(sockets=sockets))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.11/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.11/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "uvloop/loop.pyx", line 1518, in uvloop.loop.Loop.run_until_complete
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/uvicorn/server.py", line 71, in serve
+    await self._serve(sockets)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/uvicorn/server.py", line 78, in _serve
+    config.load()
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/uvicorn/config.py", line 436, in load
+    self.loaded_app = import_from_string(self.app)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/uvicorn/importer.py", line 19, in import_from_string
+    module = importlib.import_module(module_str)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.11/Frameworks/Python.framework/Versions/3.12/lib/python3.12/importlib/__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 999, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "/Users/joelcespedes/Desktop/residences/back-residence/main.py", line 6, in <module>
+    from app.routers import auth, residences, structure, residents, tags, devices, tasks, measurements, dashboard
+  File "/Users/joelcespedes/Desktop/residences/back-residence/app/routers/residents.py", line 20
+    elif current["role"] != "superadmin":
+IndentationError: unexpected indent
+WARNING:  WatchFiles detected changes in 'app/routers/residents.py'. Reloading...
+Process SpawnProcess-45:
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.12/3.12.11/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/opt/homebrew/Cellar/python@3.12/3.12.11/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/uvicorn/_subprocess.py", line 80, in subprocess_started
+    target(sockets=sockets)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/uvicorn/server.py", line 67, in run
+    return asyncio.run(self.serve(sockets=sockets))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.11/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.11/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "uvloop/loop.pyx", line 1518, in uvloop.loop.Loop.run_until_complete
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/uvicorn/server.py", line 71, in serve
+    await self._serve(sockets)
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/uvicorn/server.py", line 78, in _serve
+    config.load()
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/uvicorn/config.py", line 436, in load
+    self.loaded_app = import_from_string(self.app)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joelcespedes/Desktop/residences/back-residence/residence-env/lib/python3.12/site-packages/uvicorn/importer.py", line 19, in import_from_string
+    module = importlib.import_module(module_str)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.11/Frameworks/Python.framework/Versions/3.12/lib/python3.12/importlib/__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 999, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "/Users/joelcespedes/Desktop/residences/back-residence/main.py", line 6, in <module>
+    from app.routers import auth, residences, structure, residents, tags, devices, tasks, measurements, dashboard
+  File "/Users/joelcespedes/Desktop/residences/back-residence/app/routers/residents.py", line 161
+    raise HTTPException(status_code=400, detail="Residence ID is required")
+IndentationError: unexpected indent
+bash: line 1:  8952 Killed: 9               python3 -m uvicorn main:app --host 0.0.0.0 --port 8001 --reload

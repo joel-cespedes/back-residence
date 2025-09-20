@@ -168,7 +168,7 @@ async def list_residences(
     filters: FilterParams = Depends(),
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Query(None, alias="X-Residence-Id"),
+    residence_id: str | None = Query(None, alias="residence_id"),
 ):
     """List residences with pagination and filters"""
     await apply_residence_context(db, current, residence_id)

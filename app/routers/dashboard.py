@@ -673,7 +673,7 @@ async def get_recent_activity(db: AsyncSession, residence_id: str, days: int = 3
 async def get_dashboard_data(
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    residence_id: str | None = Header(None, alias="residence_id"),
     time_filter: str = Query("year", regex="^(week|month|year)$", description="Time filter: week, month, or year"),
 ):
     """Get complete dashboard data"""
@@ -925,7 +925,7 @@ async def get_navigation_counts(
 async def get_residents_stats(
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    residence_id: str | None = Header(None, alias="residence_id"),
     time_filter: str = Query("year", regex="^(week|month|year)$", description="Time filter: week, month, or year"),
 ):
     """Get resident statistics only"""
@@ -945,7 +945,7 @@ async def get_residents_stats(
 async def get_measurements_stats(
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    residence_id: str | None = Header(None, alias="residence_id"),
     time_filter: str = Query("year", regex="^(week|month|year)$", description="Time filter: week, month, or year"),
 ):
     """Get measurement statistics only"""
@@ -967,7 +967,7 @@ async def get_measurements_stats(
 async def get_tasks_stats(
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    residence_id: str | None = Header(None, alias="residence_id"),
     time_filter: str = Query("year", regex="^(week|month|year)$", description="Time filter: week, month, or year"),
 ):
     """Get task statistics only"""
@@ -989,7 +989,7 @@ async def get_tasks_stats(
 async def get_devices_stats(
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    residence_id: str | None = Header(None, alias="residence_id"),
     time_filter: str = Query("year", regex="^(week|month|year)$", description="Time filter: week, month, or year"),
 ):
     """Get device statistics only"""
@@ -1009,7 +1009,7 @@ async def get_devices_stats(
 async def get_new_residents_stats(
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    residence_id: str | None = Header(None, alias="residence_id"),
 ):
     """Get new resident statistics for current year"""
     await apply_residence_context(db, current, residence_id)
@@ -1021,7 +1021,7 @@ async def get_new_residents_stats(
 async def get_task_categories_with_counts(
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    residence_id: str | None = Header(None, alias="residence_id"),
 ):
     """Get task categories with task counts for dashboard"""
     await apply_residence_context(db, current, residence_id)
@@ -1112,7 +1112,7 @@ async def get_task_categories_with_counts(
 async def get_dashboard_activity(
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    residence_id: str | None = Header(None, alias="residence_id"),
     days: int = Query(30, ge=1, le=365, description="Number of days to look back"),
 ):
     """Get recent activity only"""

@@ -35,7 +35,6 @@ async def get_db(current=Depends(get_current_user)) -> AsyncSession:
 
 async def get_db_with_residence(
     current = Depends(get_current_user),
-    residence_id_header: str | None = Header(None, alias="X-Residence-Id"),
     residence_id_query: str | None = Query(None, alias="residenceId"),
 ) -> AsyncSession:
     """
@@ -47,7 +46,6 @@ async def get_db_with_residence(
     if current["role"] != "superadmin" and not residence_id:
         raise HTTPException(
             status_code=status.HTTP_428_PRECONDITION_REQUIRED,
-            detail="Select a residence (send X-Residence-Id or ?residenceId=)"
         )
 
     async with AsyncSessionLocal() as session:

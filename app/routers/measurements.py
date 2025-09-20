@@ -61,7 +61,7 @@ async def apply_residence_context_or_infer(
     if not rid and current["role"] != "superadmin":
         raise HTTPException(
             status_code=status.HTTP_428_PRECONDITION_REQUIRED,
-            detail="Select a residence (send X-Residence-Id or include resident_id/device_id to infer)"
+            detail="Select a residence (send residence_id or include resident_id/device_id to infer)"
         )
 
     # Validar pertenencia (salvo superadmin)
@@ -181,10 +181,10 @@ async def create_measurement(
     payload: MeasurementCreate,
     db: AsyncSession = Depends(get_db),                     # fija app.user_id
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    residence_id: str | None = Header(None, alias="residence_id"),
 ):
     """
-    Crea una medición. Si el header X-Residence-Id no llega, se intenta inferir
+    Crea una medición. Si el header residence_id no llega, se intenta inferir
     a partir de resident_id o device_id. Valida pertenencia y coherencia de datos.
     """
     # Validación por tipo
@@ -244,7 +244,7 @@ async def list_measurements(
     filters: FilterParams = Depends(),
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    residence_id: str | None = Header(None, alias="residence_id"),
     resident_id: str | None = Query(None),
 ):
     """
@@ -278,7 +278,7 @@ async def list_measurements(
 async def list_measurements_simple(
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    residence_id: str | None = Header(None, alias="residence_id"),
     resident_id: str | None = Query(None),
     type: str | None = Query(None, description="bp|spo2|weight|temperature"),
     since: str | None = Query(None, description="ISO datetime"),
@@ -310,7 +310,7 @@ async def get_measurement(
     measurement_id: str,
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    residence_id: str | None = Header(None, alias="residence_id"),
 ):
     """Get a specific measurement"""
     measurement = await get_measurement_or_404(measurement_id, db)
@@ -326,7 +326,7 @@ async def update_measurement(
     payload: MeasurementUpdate,
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    residence_id: str | None = Header(None, alias="residence_id"),
 ):
     """Update a measurement"""
     measurement = await get_measurement_or_404(measurement_id, db)
@@ -368,7 +368,7 @@ async def patch_measurement(
     payload: MeasurementUpdate,
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    residence_id: str | None = Header(None, alias="residence_id"),
 ):
     """Patch a measurement (legacy endpoint)"""
     return await update_measurement(measurement_id, payload, db, current, residence_id)
@@ -378,7 +378,7 @@ async def delete_measurement(
     measurement_id: str,
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    residence_id: str | None = Header(None, alias="residence_id"),
 ):
     """Soft delete a measurement"""
     measurement = await get_measurement_or_404(measurement_id, db)
@@ -400,7 +400,7 @@ async def get_measurement_history(
     measurement_id: str,
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    residence_id: str | None = Header(None, alias="residence_id"),
 ):
     """Get measurement history"""
     measurement = await get_measurement_or_404(measurement_id, db)

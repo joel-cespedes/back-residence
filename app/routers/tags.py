@@ -94,7 +94,7 @@ async def create_tag(
     data: TagCreate,
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Query(None, alias="X-Residence-Id"),
+    residence_id: str | None = Query(None, alias="residence_id"),
 ):
     """Create a new tag"""
     await apply_residence_context(db, current, residence_id)
@@ -131,7 +131,7 @@ async def list_tags(
     filters: FilterParams = Depends(),
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Query(None, alias="X-Residence-Id"),
+    residence_id: str | None = Query(None, alias="residence_id"),
 ):
     """List tags with pagination and filters"""
     await apply_residence_context(db, current, residence_id)
@@ -152,7 +152,7 @@ async def list_tags(
 async def list_tags_simple(
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Query(None, alias="X-Residence-Id"),
+    residence_id: str | None = Query(None, alias="residence_id"),
 ):
     """Legacy endpoint: List tags without pagination"""
     await apply_residence_context(db, current, residence_id)

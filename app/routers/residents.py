@@ -6,33 +6,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.deps import get_db, get_current_user
-from app.models import Resident, Bed, Residence, User, UserResidence
+from app.models import Resident, Bed, Residence, User, UserResidence, Room, Floor
 from app.schemas import (
     ResidentCreate, ResidentUpdate, ResidentOut, ResidentChangeBed,
     PaginationParams, PaginatedResponse, FilterParams
 )
 from app.security import new_uuid
+from app.services.permission_service import PermissionService
 
 router = APIRouter(prefix="/residents", tags=["residents"])
 
 # -------------------- Helper Functions --------------------
-
-async def apply_residence_context(db: AsyncSession, current: dict, residence_id: str | None):
-    """Apply residence context for RLS"""
-    if residence_id:
-        if current["role"] != "superadmin":
-            result = await db.execute(
-                select(UserResidence).where(
-                    UserResidence.user_id == current["id"],
-                    UserResidence.residence_id == residence_id,
-                )
-            )
-            if result.scalar_one_or_none() is None:
-                raise HTTPException(status_code=403, detail="Access denied to this residence")
-
-        await db.execute(text("SELECT set_config('app.residence_id', :rid, true)"), {"rid": residence_id})
-    elif current["role"] != "superadmin":
-        raise HTTPException(status_code=400, detail="Residence ID required for non-superadmin users")
 
 async def get_resident_or_404(resident_id: str, db: AsyncSession) -> Resident:
     """Get resident by ID or raise 404"""
@@ -48,7 +32,11 @@ async def paginate_query_residents(
     query,
     db: AsyncSession,
     pagination: PaginationParams,
-    filter_params: FilterParams = None
+    filter_params: FilterParams = None,
+    floor_id: str = None,
+    room_id: str = None,
+    bed_id: str = None,
+    residence_id: str = None
 ) -> PaginatedResponse:
     """Apply pagination and filters to a residents query"""
 
@@ -66,7 +54,43 @@ async def paginate_query_residents(
                 Resident.comments.ilike(search_term)
             ))
 
-    count_query = select(func.count()).select_from(query.subquery())
+    # Apply structure filters - apply all filters that are provided
+    if residence_id:
+        query = query.where(Resident.residence_id == residence_id)
+    if floor_id:
+        query = query.where(Room.floor_id == floor_id)
+    if room_id:
+        query = query.where(Bed.room_id == room_id)
+    if bed_id:
+        query = query.where(Resident.bed_id == bed_id)
+
+    # Apply filters to count query as well
+    count_query = select(func.count(Resident.id)).select_from(Resident)
+
+    if filter_params:
+        if filter_params.date_from:
+            count_query = count_query.where(Resident.created_at >= filter_params.date_from)
+        if filter_params.date_to:
+            count_query = count_query.where(Resident.created_at <= filter_params.date_to)
+        if filter_params.status:
+            count_query = count_query.where(Resident.status == filter_params.status)
+        if filter_params.search:
+            search_term = f"%{filter_params.search}%"
+            count_query = count_query.where(or_(
+                Resident.full_name.ilike(search_term),
+                Resident.comments.ilike(search_term)
+            ))
+
+    # Apply structure filters to count query as well - apply all filters
+    if residence_id:
+        count_query = count_query.where(Resident.residence_id == residence_id)
+    if floor_id:
+        count_query = count_query.join(Bed, Resident.bed_id == Bed.id, isouter=True).join(Room, Bed.room_id == Room.id, isouter=True).join(Floor, Room.floor_id == Floor.id, isouter=True).where(Floor.id == floor_id)
+    if room_id:
+        count_query = count_query.join(Bed, Resident.bed_id == Bed.id, isouter=True).join(Room, Bed.room_id == Room.id, isouter=True).where(Room.id == room_id)
+    if bed_id:
+        count_query = count_query.where(Resident.bed_id == bed_id)
+
     total = await db.scalar(count_query)
 
     if pagination.sort_by:
@@ -81,7 +105,23 @@ async def paginate_query_residents(
     query = query.offset(offset).limit(pagination.size)
 
     result = await db.execute(query)
-    items = [dict(row._mapping) for row in result.scalars().all()]
+    items = []
+    for row in result.all():
+        # Row structure: [Resident, bed_name, room_name, floor_name, residence_name]
+        resident = row[0]
+        item_dict = {}
+
+        # Add all Resident columns
+        for column in resident.__table__.columns.keys():
+            item_dict[column] = getattr(resident, column)
+
+        # Add relationship names
+        item_dict['bed_name'] = row[1]
+        item_dict['room_name'] = row[2]
+        item_dict['floor_name'] = row[3]
+        item_dict['residence_name'] = row[4]
+
+        items.append(item_dict)
 
     pages = (total + pagination.size - 1) // pagination.size
     has_next = pagination.page < pages
@@ -104,12 +144,22 @@ async def create_resident(
     data: ResidentCreate,
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Query(None, alias="X-Residence-Id"),
 ):
     """Create a new resident"""
-    await apply_residence_context(db, current, residence_id)
 
-    if not residence_id:
+    # Validate that user has permission to create residents
+    if not PermissionService.can_create_resident(current["role"]):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tiene permiso para crear residentes"
+        )
+
+    # Validate access to the specified residence
+    await PermissionService.validate_residence_access(
+        db, current["id"], data.residence_id, current["role"]
+    )
+
+    if not data.residence_id:
         raise HTTPException(status_code=400, detail="Residence ID is required")
 
     if data.bed_id:
@@ -141,24 +191,34 @@ async def list_residents(
     filters: FilterParams = Depends(),
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Query(None, alias="X-Residence-Id"),
+    floor_id: str | None = Query(None),
+    room_id: str | None = Query(None),
+    bed_id: str | None = Query(None),
+    residence_id_param: str | None = Query(None, alias="residence_id"),
 ):
-    """List residents with pagination and filters"""
-    await apply_residence_context(db, current, residence_id)
+    """List residents with pagination and filters - filtered by user role and assignments"""
 
-    if current["role"] == "superadmin":
-        if residence_id:
-            query = select(Resident).where(Resident.residence_id == residence_id, Resident.deleted_at.is_(None))
-        else:
-            query = select(Resident).where(Resident.deleted_at.is_(None))
-    else:
-        if not residence_id:
-            raise HTTPException(status_code=400, detail="Residence ID is required")
-        query = select(Resident).where(Resident.residence_id == residence_id, Resident.deleted_at.is_(None))
+    # Build base query with optimized joins
+    base_query = select(
+        Resident,
+        Bed.name.label("bed_name"),
+        Room.name.label("room_name"),
+        Floor.name.label("floor_name"),
+        Residence.name.label("residence_name")
+    ).join(Residence, Resident.residence_id == Residence.id
+    ).join(Bed, Resident.bed_id == Bed.id, isouter=True
+    ).join(Room, Bed.room_id == Room.id, isouter=True
+    ).join(Floor, Room.floor_id == Floor.id, isouter=True
+    ).where(Resident.deleted_at.is_(None))
 
-    return await paginate_query_residents(query, db, pagination, filters)
+    # Apply filtering based on user role and assignments
+    base_query = await PermissionService.filter_query_by_residence(
+        base_query, db, current["id"], current["role"], residence_id_param
+    )
 
-@router.get("/{id}", response_model=ResidentOut)
+    return await paginate_query_residents(base_query, db, pagination, filters, floor_id, room_id, bed_id, residence_id_param)
+
+@router.get("/{id}")
 async def get_resident(
     id: str,
     db: AsyncSession = Depends(get_db),
@@ -177,7 +237,40 @@ async def get_resident(
         if result.scalar_one_or_none() is None:
             raise HTTPException(status_code=403, detail="Access denied to this resident")
 
-    return resident
+    # Get resident with relationship data
+    result = await db.execute(
+        select(
+            Resident,
+            Bed.name.label("bed_name"),
+            Room.name.label("room_name"),
+            Floor.name.label("floor_name"),
+            Residence.name.label("residence_name")
+        ).join(Bed, Resident.bed_id == Bed.id, isouter=True
+        ).join(Room, Bed.room_id == Room.id, isouter=True
+        ).join(Floor, Room.floor_id == Floor.id, isouter=True
+        ).join(Residence, Resident.residence_id == Residence.id
+        ).where(Resident.id == id)
+    )
+
+    row = result.first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Resident not found")
+
+    # Build response dictionary
+    resident_data = row[0]
+    response_dict = {}
+
+    # Add all Resident columns
+    for column in resident_data.__table__.columns.keys():
+        response_dict[column] = getattr(resident_data, column)
+
+    # Add relationship names
+    response_dict['bed_name'] = row[1]
+    response_dict['room_name'] = row[2]
+    response_dict['floor_name'] = row[3]
+    response_dict['residence_name'] = row[4]
+
+    return response_dict
 
 @router.put("/{id}", response_model=ResidentOut)
 async def update_resident(
@@ -189,15 +282,10 @@ async def update_resident(
     """Update a resident"""
     resident = await get_resident_or_404(id, db)
 
-    if current["role"] != "superadmin":
-        result = await db.execute(
-            select(UserResidence).where(
-                UserResidence.user_id == current["id"],
-                UserResidence.residence_id == resident.residence_id,
-            )
-        )
-        if result.scalar_one_or_none() is None:
-            raise HTTPException(status_code=403, detail="Access denied to this resident")
+    # Validate access to resident's residence
+    await PermissionService.validate_residence_access(
+        db, current["id"], resident.residence_id, current["role"]
+    )
 
     if data.bed_id:
         bed_result = await db.execute(
@@ -317,6 +405,6 @@ async def get_resident_history(
         {"resident_id": id}
     )
 
-    return [dict(row._mapping) for row in result.fetchall()]
+    return [dict(row) for row in result.fetchall()]
 
 

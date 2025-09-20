@@ -104,7 +104,7 @@ async def create_device(
     data: DeviceCreate,
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Query(None, alias="X-Residence-Id"),
+    residence_id: str | None = Query(None, alias="residence_id"),
 ):
     """Create a new device"""
     await apply_residence_context(db, current, residence_id)
@@ -142,7 +142,7 @@ async def list_devices(
     filters: FilterParams = Depends(),
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Query(None, alias="X-Residence-Id"),
+    residence_id: str | None = Query(None, alias="residence_id"),
 ):
     """List devices with pagination and filters"""
     await apply_residence_context(db, current, residence_id)

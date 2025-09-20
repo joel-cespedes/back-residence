@@ -148,13 +148,13 @@ async def create_category(
     payload: TaskCategoryCreate,
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    residence_id: str | None = Header(None, alias="residence_id"),
 ):
     rid = await _set_residence_context(db, current, residence_id)
     if current["role"] not in ("superadmin", "manager"):
         raise HTTPException(status_code=403, detail="Only manager/superadmin can create categories")
     if not rid:
-        raise HTTPException(status_code=428, detail="Select a residence (X-Residence-Id)")
+        raise HTTPException(status_code=428, detail="Select a residence (residence_id)")
 
     # nombre único por residencia
     exists = await db.scalar(
@@ -177,14 +177,14 @@ async def list_categories(
     filters: FilterParams = Depends(),
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    residence_id: str | None = Header(None, alias="residence_id"),
 ):
     rid = await _set_residence_context(db, current, residence_id)
     query = select(TaskCategory).where(TaskCategory.deleted_at.is_(None))
 
     if current["role"] != "superadmin":
         if not rid:
-            raise HTTPException(status_code=428, detail="Select a residence (X-Residence-Id)")
+            raise HTTPException(status_code=428, detail="Select a residence (residence_id)")
         query = query.where(TaskCategory.residence_id == rid)
 
     if filters and filters.search:
@@ -197,14 +197,14 @@ async def list_categories(
 async def list_categories_simple(
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    residence_id: str | None = Header(None, alias="residence_id"),
 ):
     """Legacy endpoint: List categories without pagination"""
     rid = await _set_residence_context(db, current, residence_id)
     conds = [TaskCategory.deleted_at.is_(None)]
     if current["role"] != "superadmin":
         if not rid:
-            raise HTTPException(status_code=428, detail="Select a residence (X-Residence-Id)")
+            raise HTTPException(status_code=428, detail="Select a residence (residence_id)")
         conds.append(TaskCategory.residence_id == rid)
 
     q = await db.execute(select(TaskCategory).where(and_(*conds)).order_by(TaskCategory.name))
@@ -266,13 +266,13 @@ async def create_template(
     payload: TaskTemplateCreate,
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    residence_id: str | None = Header(None, alias="residence_id"),
 ):
     rid = await _set_residence_context(db, current, residence_id)
     if current["role"] not in ("superadmin", "manager"):
         raise HTTPException(status_code=403, detail="Only manager/superadmin can create templates")
     if not rid:
-        raise HTTPException(status_code=428, detail="Select a residence (X-Residence-Id)")
+        raise HTTPException(status_code=428, detail="Select a residence (residence_id)")
 
     # comprobar categoría pertenece a la misma residencia
     c = await db.scalar(
@@ -312,7 +312,7 @@ async def list_templates(
     filters: FilterParams = Depends(),
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    residence_id: str | None = Header(None, alias="residence_id"),
     category_id: str | None = Query(None),
 ):
     rid = await _set_residence_context(db, current, residence_id)
@@ -320,7 +320,7 @@ async def list_templates(
 
     if current["role"] != "superadmin":
         if not rid:
-            raise HTTPException(status_code=428, detail="Select a residence (X-Residence-Id)")
+            raise HTTPException(status_code=428, detail="Select a residence (residence_id)")
         query = query.where(TaskTemplate.residence_id == rid)
     if category_id:
         query = query.where(TaskTemplate.task_category_id == category_id)
@@ -335,7 +335,7 @@ async def list_templates(
 async def list_templates_simple(
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    residence_id: str | None = Header(None, alias="residence_id"),
     category_id: str | None = Query(None),
 ):
     """Legacy endpoint: List templates without pagination"""
@@ -343,7 +343,7 @@ async def list_templates_simple(
     conds = [TaskTemplate.deleted_at.is_(None)]
     if current["role"] != "superadmin":
         if not rid:
-            raise HTTPException(status_code=428, detail="Select a residence (X-Residence-Id)")
+            raise HTTPException(status_code=428, detail="Select a residence (residence_id)")
         conds.append(TaskTemplate.residence_id == rid)
     if category_id:
         conds.append(TaskTemplate.task_category_id == category_id)
@@ -418,12 +418,12 @@ async def apply_task(
     payload: TaskApplicationCreate,
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    residence_id: str | None = Header(None, alias="residence_id"),
 ):
     # Fijar/validar residencia
     rid = await _set_residence_context(db, current, residence_id)
     if not rid and current["role"] != "superadmin":
-        raise HTTPException(status_code=428, detail="Select a residence (X-Residence-Id)")
+        raise HTTPException(status_code=428, detail="Select a residence (residence_id)")
 
     # Validar residente pertenece a residencia
     r_res = await db.scalar(
@@ -476,7 +476,7 @@ async def list_applications(
     filters: FilterParams = Depends(),
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    residence_id: str | None = Header(None, alias="residence_id"),
     resident_id: str | None = Query(None),
     template_id: str | None = Query(None),
 ):
@@ -486,7 +486,7 @@ async def list_applications(
 
     if current["role"] != "superadmin":
         if not rid:
-            raise HTTPException(status_code=428, detail="Select a residence (X-Residence-Id)")
+            raise HTTPException(status_code=428, detail="Select a residence (residence_id)")
         query = query.where(TaskApplication.residence_id == rid)
     if resident_id:
         query = query.where(TaskApplication.resident_id == resident_id)
@@ -504,7 +504,7 @@ async def list_applications(
 async def list_applications_simple(
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="X-Residence-Id"),
+    residence_id: str | None = Header(None, alias="residence_id"),
     resident_id: str | None = Query(None),
     template_id: str | None = Query(None),
     limit: int = Query(100, ge=1, le=1000),
@@ -515,7 +515,7 @@ async def list_applications_simple(
     conds = [TaskApplication.deleted_at.is_(None)]
     if current["role"] != "superadmin":
         if not rid:
-            raise HTTPException(status_code=428, detail="Select a residence (X-Residence-Id)")
+            raise HTTPException(status_code=428, detail="Select a residence (residence_id)")
         conds.append(TaskApplication.residence_id == rid)
     if resident_id:
         conds.append(TaskApplication.resident_id == resident_id)
