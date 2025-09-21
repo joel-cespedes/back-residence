@@ -7,6 +7,11 @@ Módulo que contiene todos los esquemas de Pydantic para la API del sistema de r
 Cada esquema está separado en su propio archivo por entidad para mantener una organización clara.
 """
 
+from datetime import datetime
+from typing import List
+
+from pydantic import BaseModel, Field, ConfigDict
+
 # Importar enumeraciones comunes
 from .enums import (
     UserRole,
@@ -27,6 +32,33 @@ from .measurement import MeasurementCreate, MeasurementUpdate, MeasurementOut
 from .tag import TagCreate, TagUpdate, TagOut, ResidentTagAssign
 from .dashboard import DashboardMetric, MonthlyData, YearComparison, ResidentStats, MeasurementStats, TaskStats, TaskCategoryWithCount, MonthlyResidentData, NewResidentStats, DeviceStats, DashboardData
 from .pagination import PaginationParams, PaginatedResponse, FilterParams
+
+
+class UserResidenceAssignment(BaseModel):
+    """Residencia asignada a un usuario."""
+
+    id: str
+
+
+class UserOut(BaseModel):
+    """Respuesta estándar para operaciones de usuarios."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    alias: str
+    role: UserRole
+    residences: List[UserResidenceAssignment]
+    created_at: datetime
+
+
+class UserCreate(BaseModel):
+    """Payload para crear usuarios."""
+
+    alias: str = Field(..., min_length=1, description="Alias único del usuario")
+    password: str = Field(..., min_length=6, description="Contraseña definida por el creador")
+    role: UserRole = Field(..., description="Rol del nuevo usuario")
+    residence_ids: List[str] = Field(default_factory=list, description="Residencias asignadas")
 
 # Exportar todos los esquemas para fácil importación
 __all__ = [
@@ -107,5 +139,10 @@ __all__ = [
     # Paginación y Filtros
     "PaginationParams",
     "PaginatedResponse",
-    "FilterParams"
+    "FilterParams",
+
+    # Usuarios
+    "UserCreate",
+    "UserOut",
+    "UserResidenceAssignment",
 ]

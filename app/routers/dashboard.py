@@ -44,6 +44,7 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 async def apply_residence_context(db: AsyncSession, current: dict, residence_id: str | None):
     """Apply residence context for RLS"""
     if residence_id:
+        # User is filtering by specific residence - check access
         if current["role"] != "superadmin":
             result = await db.execute(
                 select(UserResidence).where(
@@ -53,10 +54,23 @@ async def apply_residence_context(db: AsyncSession, current: dict, residence_id:
             )
             if result.scalar_one_or_none() is None:
                 raise HTTPException(status_code=403, detail="Access denied to this residence")
-
         await db.execute(text("SELECT set_config('app.residence_id', :rid, true)"), {"rid": residence_id})
-    elif current["role"] != "superadmin":
-        raise HTTPException(status_code=400, detail="Residence ID required for non-superadmin users")
+    else:
+        # No specific residence_id - user can see their assigned residences or all if superadmin
+        if current["role"] != "superadmin":
+            # Get user's assigned residences
+            result = await db.execute(
+                select(UserResidence.residence_id).where(
+                    UserResidence.user_id == current["id"]
+                )
+            )
+            user_residences = [row[0] for row in result.all()]
+            if user_residences:
+                # Set context to first assigned residence
+                await db.execute(text("SELECT set_config('app.residence_id', :rid, true)"), {"rid": user_residences[0]})
+            else:
+                raise HTTPException(status_code=403, detail="No residences assigned to user")
+        # Superadmin can see all - no residence context needed
 
 async def get_resident_stats(db: AsyncSession, residence_id: str, days: int = 30) -> ResidentStats:
     """Get resident statistics"""

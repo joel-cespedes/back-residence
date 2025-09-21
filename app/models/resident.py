@@ -31,7 +31,6 @@ class Resident(Base):
     full_name: Mapped[str] = mapped_column(Text, nullable=False)
     birth_date: Mapped[date] = mapped_column(Date, nullable=False)
     sex: Mapped[Optional[str]] = mapped_column(Text)
-    gender: Mapped[Optional[str]] = mapped_column(Text)
     comments: Mapped[Optional[str]] = mapped_column(Text)
 
     # ---------- Estado y asignación ----------

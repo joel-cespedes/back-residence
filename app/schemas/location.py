@@ -27,8 +27,10 @@ class FloorUpdate(BaseModel):
 
     Attributes:
         name (Optional[str]): Nuevo nombre del piso
+        residence_id (Optional[str]): Nueva residencia asignada
     """
     name: Optional[str] = None
+    residence_id: Optional[str] = None
 
 
 class FloorOut(BaseModel):
@@ -113,8 +115,14 @@ class BedUpdate(BaseModel):
 
     Attributes:
         name (Optional[str]): Nuevo nombre de la cama
+        residence_id (Optional[str]): Nueva residencia a la que pertenece la cama
+        floor_id (Optional[str]): Nuevo piso al que pertenece la cama
+        room_id (Optional[str]): Nueva habitación a la que pertenece la cama
     """
     name: Optional[str] = None
+    residence_id: Optional[str] = None
+    floor_id: Optional[str] = None
+    room_id: Optional[str] = None
 
 
 class BedOut(BaseModel):

@@ -11,6 +11,7 @@ setup_exception_handlers(app)
 
 app.include_router(auth.router)
 app.include_router(residences.router)
+app.include_router(residences.user_router)
 app.include_router(structure.router)
 app.include_router(residents.router)
 app.include_router(tags.router)
@@ -28,5 +29,3 @@ def root():
 
 if __name__ == "__main__":
     uvicorn.run("main:app", reload=True, port=8001)
-
-

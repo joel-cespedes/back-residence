@@ -61,9 +61,15 @@ class PermissionService:
         return user_role == "superadmin"
 
     @staticmethod
-    def can_manage_users(user_role: str) -> bool:
-        """Verificar si un rol puede gestionar usuarios"""
-        return user_role == "superadmin"
+    def can_manage_users(user_role: str, target_role: str) -> bool:
+        """Verificar si un rol puede gestionar usuarios según el rol objetivo"""
+        if user_role == "superadmin":
+            return True
+
+        if user_role == "manager" and target_role in {"manager", "professional"}:
+            return True
+
+        return False
 
     @staticmethod
     def can_create_resident(user_role: str) -> bool:
@@ -93,11 +99,13 @@ class PermissionService:
         if residence_id:
             # Si se especifica una residencia, verificar acceso y filtrar por esa
             await PermissionService.validate_residence_access(db, user_id, residence_id, user_role)
-            return query.where(query.columns[0].table.c.residence_id == residence_id)
+            from app.models.resident import Resident
+            return query.where(Resident.residence_id == residence_id)
         else:
             # Si no se especifica, filtrar por todas las residencias accesibles
             if accessible_residences:
-                return query.where(query.columns[0].table.c.residence_id.in_(accessible_residences))
+                from app.models.resident import Resident
+                return query.where(Resident.residence_id.in_(accessible_residences))
             else:
                 # Si no tiene residencias asignadas, retornar consulta vacía
                 return query.where(text("1=0"))

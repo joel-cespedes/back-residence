@@ -54,13 +54,13 @@ async def paginate_query_residents(
                 Resident.comments.ilike(search_term)
             ))
 
-    # Apply structure filters - apply all filters that are provided
+    # Apply structure filters - apply all filters
     if residence_id:
         query = query.where(Resident.residence_id == residence_id)
     if floor_id:
-        query = query.where(Room.floor_id == floor_id)
+        query = query.where(Floor.id == floor_id)
     if room_id:
-        query = query.where(Bed.room_id == room_id)
+        query = query.where(Room.id == room_id)
     if bed_id:
         query = query.where(Resident.bed_id == bed_id)
 
@@ -81,14 +81,14 @@ async def paginate_query_residents(
                 Resident.comments.ilike(search_term)
             ))
 
-    # Apply structure filters to count query as well - apply all filters
+    # Apply structure filters to count query as well - simplify to avoid duplicate joins
     if residence_id:
         count_query = count_query.where(Resident.residence_id == residence_id)
     if floor_id:
         count_query = count_query.join(Bed, Resident.bed_id == Bed.id, isouter=True).join(Room, Bed.room_id == Room.id, isouter=True).join(Floor, Room.floor_id == Floor.id, isouter=True).where(Floor.id == floor_id)
-    if room_id:
+    elif room_id:
         count_query = count_query.join(Bed, Resident.bed_id == Bed.id, isouter=True).join(Room, Bed.room_id == Room.id, isouter=True).where(Room.id == room_id)
-    if bed_id:
+    elif bed_id:
         count_query = count_query.where(Resident.bed_id == bed_id)
 
     total = await db.scalar(count_query)
@@ -146,44 +146,57 @@ async def create_resident(
     current = Depends(get_current_user),
 ):
     """Create a new resident"""
+    import logging
+    logger = logging.getLogger(__name__)
 
-    # Validate that user has permission to create residents
-    if not PermissionService.can_create_resident(current["role"]):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="No tiene permiso para crear residentes"
+    try:
+        # Validate that user has permission to create residents
+        if not PermissionService.can_create_resident(current["role"]):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No tiene permiso para crear residentes"
+            )
+
+        # Validate access to the specified residence
+        await PermissionService.validate_residence_access(
+            db, current["id"], data.residence_id, current["role"]
         )
 
-    # Validate access to the specified residence
-    await PermissionService.validate_residence_access(
-        db, current["id"], data.residence_id, current["role"]
-    )
+        if not data.residence_id:
+            raise HTTPException(status_code=400, detail="Residence ID is required")
 
-    if not data.residence_id:
-        raise HTTPException(status_code=400, detail="Residence ID is required")
+        if data.bed_id:
+            bed_result = await db.execute(
+                select(Bed).where(Bed.id == data.bed_id, Bed.deleted_at.is_(None))
+            )
+            bed = bed_result.scalar_one_or_none()
+            if not bed:
+                raise HTTPException(status_code=404, detail="Bed not found")
+            if bed.residence_id != data.residence_id:
+                raise HTTPException(status_code=400, detail="Bed must belong to the specified residence")
 
-    if data.bed_id:
-        bed_result = await db.execute(
-            select(Bed).where(Bed.id == data.bed_id, Bed.deleted_at.is_(None))
+        await db.execute(text("SELECT set_config('app.user_id', :uid, true)"), {"uid": current["id"]})
+
+        logger.error(f"Creating resident with data: {data.model_dump()}")
+
+        # Create resident data excluding residence_id from model_dump to avoid duplicate argument
+        resident_data = data.model_dump()
+        resident_data.pop('residence_id', None)  # Remove residence_id to avoid duplicate
+
+        resident = Resident(
+            id=new_uuid(),
+            residence_id=data.residence_id,
+            **resident_data
         )
-        bed = bed_result.scalar_one_or_none()
-        if not bed:
-            raise HTTPException(status_code=404, detail="Bed not found")
-        if bed.residence_id != residence_id:
-            raise HTTPException(status_code=400, detail="Bed must belong to the specified residence")
 
-    await db.execute(text("SELECT set_config('app.user_id', :uid, true)"), {"uid": current["id"]})
-
-    resident = Resident(
-        id=new_uuid(),
-        residence_id=residence_id,
-        **data.model_dump()
-    )
-
-    db.add(resident)
-    await db.commit()
-    await db.refresh(resident)
-    return resident
+        db.add(resident)
+        await db.commit()
+        await db.refresh(resident)
+        return resident
+    except Exception as e:
+        logger.error(f"Error in create_resident: {str(e)}")
+        logger.error(f"Data received: {data.model_dump() if hasattr(data, 'model_dump') else data}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.get("/", response_model=PaginatedResponse)
 async def list_residents(
@@ -197,26 +210,37 @@ async def list_residents(
     residence_id_param: str | None = Query(None, alias="residence_id"),
 ):
     """List residents with pagination and filters - filtered by user role and assignments"""
+    import logging
+    logger = logging.getLogger(__name__)
 
-    # Build base query with optimized joins
-    base_query = select(
-        Resident,
-        Bed.name.label("bed_name"),
-        Room.name.label("room_name"),
-        Floor.name.label("floor_name"),
-        Residence.name.label("residence_name")
-    ).join(Residence, Resident.residence_id == Residence.id
-    ).join(Bed, Resident.bed_id == Bed.id, isouter=True
-    ).join(Room, Bed.room_id == Room.id, isouter=True
-    ).join(Floor, Room.floor_id == Floor.id, isouter=True
-    ).where(Resident.deleted_at.is_(None))
+    try:
+        # Build base query with optimized joins
+        base_query = select(
+            Resident,
+            Bed.name.label("bed_name"),
+            Room.name.label("room_name"),
+            Floor.name.label("floor_name"),
+            Residence.name.label("residence_name")
+        ).join(Residence, Resident.residence_id == Residence.id
+        ).join(Bed, Resident.bed_id == Bed.id, isouter=True
+        ).join(Room, Bed.room_id == Room.id, isouter=True
+        ).join(Floor, Room.floor_id == Floor.id, isouter=True
+        ).where(Resident.deleted_at.is_(None))
 
-    # Apply filtering based on user role and assignments
-    base_query = await PermissionService.filter_query_by_residence(
-        base_query, db, current["id"], current["role"], residence_id_param
-    )
+        # Apply filtering based on user role and assignments
+        base_query = await PermissionService.filter_query_by_residence(
+            base_query, db, current["id"], current["role"], residence_id_param
+        )
 
-    return await paginate_query_residents(base_query, db, pagination, filters, floor_id, room_id, bed_id, residence_id_param)
+        logger.error(f"Base query before pagination: {base_query}")
+
+        result = await paginate_query_residents(base_query, db, pagination, filters, floor_id, room_id, bed_id, residence_id_param)
+        logger.error(f"Result items count: {len(result.items) if hasattr(result, 'items') else 0}")
+        return result
+    except Exception as e:
+        logger.error(f"Error in list_residents: {str(e)}")
+        logger.error(f"Params: floor_id={floor_id}, room_id={room_id}, bed_id={bed_id}, residence_id={residence_id_param}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.get("/{id}")
 async def get_resident(

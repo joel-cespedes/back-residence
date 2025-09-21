@@ -21,18 +21,18 @@ class ResidentCreate(BaseModel):
     Attributes:
         full_name (str): Nombre completo del residente
         birth_date (date): Fecha de nacimiento del residente
-        sex (Optional[str]): Sexo biológico del residente
-        gender (Optional[str]): Género de identidad del residente
+        sex (Optional[str]): Sexo del residente
         comments (Optional[str]): Comentarios adicionales sobre el residente
         status (ResidentStatus): Estado del residente (default: 'active')
+        residence_id (str): ID de la residencia a la que pertenece el residente
         bed_id (Optional[str]): ID de la cama asignada (solo para residentes activos)
     """
     full_name: str
     birth_date: date
     sex: Optional[str] = None
-    gender: Optional[str] = None
     comments: Optional[str] = None
     status: ResidentStatus = "active"
+    residence_id: str
     bed_id: Optional[str] = None
 
 
@@ -43,8 +43,7 @@ class ResidentUpdate(BaseModel):
     Attributes:
         full_name (Optional[str]): Nuevo nombre completo
         birth_date (Optional[date]): Nueva fecha de nacimiento
-        sex (Optional[str]): Nuevo sexo biológico
-        gender (Optional[str]): Nuevo género de identidad
+        sex (Optional[str]): Nuevo sexo
         comments (Optional[str]): Nuevos comentarios
         status (Optional[ResidentStatus]): Nuevo estado
         bed_id (Optional[str]): Nueva cama asignada
@@ -52,7 +51,6 @@ class ResidentUpdate(BaseModel):
     full_name: Optional[str] = None
     birth_date: Optional[date] = None
     sex: Optional[str] = None
-    gender: Optional[str] = None
     comments: Optional[str] = None
     status: Optional[ResidentStatus] = None
     bed_id: Optional[str] = None

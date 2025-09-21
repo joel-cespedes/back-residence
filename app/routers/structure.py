@@ -14,6 +14,7 @@ from app.schemas import (
     PaginationParams, PaginatedResponse, FilterParams
 )
 from app.security import new_uuid
+from app.services.permission_service import PermissionService
 
 router = APIRouter(prefix="/structure", tags=["structure"])
 
@@ -46,14 +47,32 @@ async def get_residence_or_404(residence_id: str, db: AsyncSession) -> Residence
         raise HTTPException(status_code=404, detail="Residence not found")
     return residence
 
-async def get_floor_or_404(floor_id: str, db: AsyncSession) -> Floor:
-    """Get floor by ID or raise 404"""
-    result = await db.execute(
-        select(Floor).where(Floor.id == floor_id, Floor.deleted_at.is_(None))
-    )
-    floor = result.scalar_one_or_none()
+async def get_floor_or_404(floor_id: str, db: AsyncSession, current: dict | None = None) -> Floor:
+    if current:
+        await db.execute(text("SELECT set_config('app.user_id', :uid, true)"), {"uid": current['id']})
+
+    async def fetch() -> Floor | None:
+        result = await db.execute(
+            select(Floor).where(Floor.id == floor_id, Floor.deleted_at.is_(None))
+        )
+        return result.scalar_one_or_none()
+
+    if current and current.get('role') != 'superadmin':
+        accessible = await PermissionService.get_accessible_residence_ids(db, current['id'], current['role'])
+        for residence_id in accessible:
+            await db.execute(text("SELECT set_config('app.residence_id', :rid, true)"), {"rid": residence_id})
+            floor = await fetch()
+            if floor:
+                return floor
+        raise HTTPException(status_code=404, detail='Floor not found')
+
+    floor = await fetch()
     if not floor:
-        raise HTTPException(status_code=404, detail="Floor not found")
+        raise HTTPException(status_code=404, detail='Floor not found')
+
+    if current:
+        await db.execute(text("SELECT set_config('app.residence_id', :rid, true)"), {"rid": floor.residence_id})
+
     return floor
 
 async def get_room_or_404(room_id: str, db: AsyncSession) -> Room:
@@ -307,7 +326,7 @@ async def get_floor(
     current = Depends(get_current_user),
 ):
     """Get a specific floor"""
-    floor = await get_floor_or_404(id, db)
+    floor = await get_floor_or_404(id, db, current)
 
     if current["role"] != "superadmin":
         result = await db.execute(
@@ -327,9 +346,11 @@ async def update_floor(
     data: FloorUpdate,
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
+    residence_id: str | None = Query(None, alias="residence_id"),
 ):
     """Update a floor"""
-    floor = await get_floor_or_404(id, db)
+    await apply_residence_context(db, current, residence_id)
+    floor = await get_floor_or_404(id, db, current)
 
     if current["role"] != "superadmin":
         result = await db.execute(
@@ -344,6 +365,23 @@ async def update_floor(
     await db.execute(text("SELECT set_config('app.user_id', :uid, true)"), {"uid": current["id"]})
 
     update_data = data.dict(exclude_unset=True)
+
+    new_residence_id = update_data.pop('residence_id', None)
+    if new_residence_id and new_residence_id != floor.residence_id:
+        await get_residence_or_404(new_residence_id, db)
+
+        if current['role'] != 'superadmin':
+            check = await db.execute(
+                select(UserResidence).where(
+                    UserResidence.user_id == current['id'],
+                    UserResidence.residence_id == new_residence_id,
+                )
+            )
+            if check.scalar_one_or_none() is None:
+                raise HTTPException(status_code=403, detail='Access denied to this residence')
+
+        floor.residence_id = new_residence_id
+
     for field, value in update_data.items():
         setattr(floor, field, value)
 
@@ -356,9 +394,11 @@ async def delete_floor(
     id: str,
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
+    residence_id: str | None = Query(None, alias="residence_id"),
 ):
     """Soft delete a floor"""
-    floor = await get_floor_or_404(id, db)
+    await apply_residence_context(db, current, residence_id)
+    floor = await get_floor_or_404(id, db, current)
 
     if current["role"] != "superadmin":
         result = await db.execute(

@@ -1,6 +1,8 @@
 # app/routers/residences.py
 from __future__ import annotations
 
+import bcrypt
+
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from sqlalchemy import select, func, and_, or_, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,12 +12,14 @@ from app.deps import get_db, get_current_user
 from app.models import Residence, User, UserResidence
 from app.schemas import (
     ResidenceCreate, ResidenceUpdate, ResidenceOut,
-    PaginationParams, PaginatedResponse, FilterParams
+    PaginationParams, PaginatedResponse, FilterParams,
+    UserCreate, UserOut, UserResidenceAssignment,
 )
-from app.security import new_uuid, decrypt_data, encrypt_data
-from sqlalchemy import text
+from app.security import new_uuid, decrypt_data, encrypt_data, hash_alias
+from app.services.permission_service import PermissionService
 
 router = APIRouter(prefix="/residences", tags=["residences"])
+user_router = APIRouter(prefix="/users", tags=["users"])
 
 # -------------------- Helper Functions --------------------
 
@@ -117,6 +121,118 @@ async def paginate_query(
         pages=pages,
         has_next=has_next,
         has_prev=has_prev
+    )
+
+
+# -------------------- User Management --------------------
+
+
+async def _ensure_alias_available(db: AsyncSession, alias_hash: str) -> None:
+    """Valida que el alias no esté en uso."""
+
+    result = await db.execute(
+        select(User).where(User.alias_hash == alias_hash, User.deleted_at.is_(None))
+    )
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Alias already in use")
+
+
+async def _validate_residences_exist(db: AsyncSession, residence_ids: list[str]) -> list[str]:
+    """Confirma que las residencias existen y están activas (preserva orden)."""
+
+    if not residence_ids:
+        return []
+
+    result = await db.execute(
+        select(Residence.id).where(Residence.id.in_(residence_ids), Residence.deleted_at.is_(None))
+    )
+    found = {row[0] for row in result.fetchall()}
+    missing = set(residence_ids) - found
+    if missing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Residence not found")
+
+    return [rid for rid in residence_ids if rid in found]
+
+
+async def _validate_assignment_scope(
+    db: AsyncSession,
+    creator_role: str,
+    creator_id: str,
+    residence_ids: list[str],
+) -> None:
+    """Evita que un gestor asigne residencias que no le pertenecen."""
+
+    if creator_role == "superadmin" or not residence_ids:
+        return
+
+    allowed = set(await PermissionService.get_user_residences(db, creator_id))
+    if not set(residence_ids).issubset(allowed):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot assign unowned residences")
+
+
+def _hash_password(password: str) -> str:
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
+
+
+@user_router.post("/", response_model=UserOut, status_code=status.HTTP_201_CREATED)
+async def create_user(
+    payload: UserCreate,
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+):
+    target_role = payload.role
+
+    alias_input = payload.alias.strip()
+    if not alias_input:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Alias cannot be empty")
+
+    if not PermissionService.can_manage_users(current["role"], target_role):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Operation not permitted for role")
+
+    if target_role in {"manager", "professional"} and not payload.residence_ids:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Residence assignments required")
+
+    alias_hash = hash_alias(alias_input)
+    await _ensure_alias_available(db, alias_hash)
+
+    unique_residences: list[str] = []
+    seen: set[str] = set()
+    for residence_id in payload.residence_ids:
+        if residence_id not in seen:
+            unique_residences.append(residence_id)
+            seen.add(residence_id)
+
+    valid_residences = await _validate_residences_exist(db, unique_residences)
+    await _validate_assignment_scope(db, current["role"], current["id"], valid_residences)
+
+    password_hash = _hash_password(payload.password)
+    user = User(
+        id=new_uuid(),
+        role=target_role,
+        alias_encrypted=encrypt_data(alias_input),
+        alias_hash=alias_hash,
+        password_hash=password_hash,
+    )
+
+    db.add(user)
+    await db.flush()
+
+    assignments: list[UserResidence] = []
+    for residence_id in valid_residences:
+        assignment = UserResidence(user_id=user.id, residence_id=residence_id)
+        db.add(assignment)
+        assignments.append(assignment)
+
+    await db.commit()
+    await db.refresh(user)
+
+    return UserOut(
+        id=user.id,
+        alias=alias_input,
+        role=user.role,
+        residences=[UserResidenceAssignment(id=a.residence_id) for a in assignments],
+        created_at=user.created_at,
     )
 
 # -------------------- CRUD Endpoints --------------------
