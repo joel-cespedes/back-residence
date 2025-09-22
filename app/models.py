@@ -191,6 +191,12 @@ class UserResidence(Base):
         primary_key=True
     )
 
+    # ---------- Auditoría ----------
+    created_by: Mapped[Optional[str]] = mapped_column(UUID(as_uuid=False), ForeignKey("user.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
     def __repr__(self) -> str:
         """Representación en string de la relación usuario-residencia."""
         return f"<UserResidence(user_id={self.user_id[:8]}..., residence_id={self.residence_id[:8]}...)>"

@@ -229,11 +229,13 @@ async def list_residences(
     residence_id: str | None = Query(None, alias="residence_id"),
 ):
     """List residences with pagination and filters"""
-    await apply_residence_context(db, current, residence_id)
-
+    
     # Build base query based on user role
     if current["role"] == "superadmin":
         query = select(Residence).where(Residence.deleted_at.is_(None))
+        # Si superadmin proporciona residence_id, filtrar por esa residencia
+        if residence_id:
+            query = query.where(Residence.id == residence_id)
     else:
         # Only show residences the user has access to
         query = (
@@ -241,9 +243,13 @@ async def list_residences(
             .join(UserResidence, UserResidence.residence_id == Residence.id)
             .where(
                 UserResidence.user_id == current["id"],
+                UserResidence.deleted_at.is_(None),
                 Residence.deleted_at.is_(None)
             )
         )
+        # Si usuario proporciona residence_id, verificar que tenga acceso y filtrar
+        if residence_id:
+            query = query.where(Residence.id == residence_id)
 
     return await paginate_query(query, db, pagination, filters)
 
@@ -265,6 +271,7 @@ async def my_residences(
             .join(UserResidence, UserResidence.residence_id == Residence.id)
             .where(
                 UserResidence.user_id == current["id"],
+                UserResidence.deleted_at.is_(None),
                 Residence.deleted_at.is_(None)
             )
             .order_by(Residence.name)

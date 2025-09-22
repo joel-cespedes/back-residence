@@ -50,6 +50,7 @@ async def apply_residence_context(db: AsyncSession, current: dict, residence_id:
                 select(UserResidence).where(
                     UserResidence.user_id == current["id"],
                     UserResidence.residence_id == residence_id,
+                    UserResidence.deleted_at.is_(None)
                 )
             )
             if result.scalar_one_or_none() is None:
@@ -61,7 +62,8 @@ async def apply_residence_context(db: AsyncSession, current: dict, residence_id:
             # Get user's assigned residences
             result = await db.execute(
                 select(UserResidence.residence_id).where(
-                    UserResidence.user_id == current["id"]
+                    UserResidence.user_id == current["id"],
+                    UserResidence.deleted_at.is_(None)
                 )
             )
             user_residences = [row[0] for row in result.all()]

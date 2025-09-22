@@ -394,7 +394,7 @@ class DatabaseSeeder:
         await self.session.flush()
         return tags
 
-    async def assign_users_to_residences(self, users: List[User], residences: List[Residence]):
+    async def assign_users_to_residences(self, users: List[User], residences: List[Residence], superadmin_id: str = None):
         """Asigna usuarios a residencias"""
         print("🔗 Asignando usuarios a residencias...")
         
@@ -409,7 +409,8 @@ class DatabaseSeeder:
             for residence in assigned_residences:
                 assignment = UserResidence(
                     user_id=user.id,
-                    residence_id=residence.id
+                    residence_id=residence.id,
+                    created_by=superadmin_id  # El superadmin asigna las residencias
                 )
                 self.session.add(assignment)
 
@@ -442,7 +443,7 @@ class DatabaseSeeder:
         categories, templates = await self.create_task_system(residences, superadmin.id)
         
         # 7. Asignaciones
-        await self.assign_users_to_residences([manager, professional], residences)
+        await self.assign_users_to_residences([manager, professional], residences, superadmin.id)
         
         await self.session.commit()
         print("✅ Datos mínimos creados")
@@ -497,7 +498,7 @@ class DatabaseSeeder:
         tags = await self.create_tags_and_assignments(residents, all_users)
         
         # 8. Asignaciones
-        await self.assign_users_to_residences(managers + professionals, residences)
+        await self.assign_users_to_residences(managers + professionals, residences, superadmin.id)
         
         await self.session.commit()
         print("✅ Datos de desarrollo creados")
@@ -554,7 +555,7 @@ class DatabaseSeeder:
         tags = await self.create_tags_and_assignments(residents, all_users)
         
         # 8. Asignaciones
-        await self.assign_users_to_residences(managers + professionals, residences)
+        await self.assign_users_to_residences(managers + professionals, residences, superadmin.id)
         
         await self.session.commit()
         print("✅ Datos completos creados")
