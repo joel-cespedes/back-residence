@@ -99,12 +99,12 @@ class PermissionService:
         if residence_id:
             # Si se especifica una residencia, verificar acceso y filtrar por esa
             await PermissionService.validate_residence_access(db, user_id, residence_id, user_role)
-            from app.models.resident import Resident
+            # Resident ya está importado al inicio del archivo
             return query.where(Resident.residence_id == residence_id)
         else:
             # Si no se especifica, filtrar por todas las residencias accesibles
             if accessible_residences:
-                from app.models.resident import Resident
+                # Resident ya está importado al inicio del archivo
                 return query.where(Resident.residence_id.in_(accessible_residences))
             else:
                 # Si no tiene residencias asignadas, retornar consulta vacía
