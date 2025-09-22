@@ -286,7 +286,7 @@ class DatabaseSeeder:
         await self.session.flush()
         return residents
 
-    async def create_task_system(self, residences: List[Residence]) -> Tuple[List[TaskCategory], List[TaskTemplate]]:
+    async def create_task_system(self, residences: List[Residence], creator_id: str = None) -> Tuple[List[TaskCategory], List[TaskTemplate]]:
         """Crea el sistema de categorías y plantillas de tareas"""
         print("📋 Creando sistema de tareas...")
         
@@ -299,7 +299,8 @@ class DatabaseSeeder:
                 category = TaskCategory(
                     id=str(uuid.uuid4()),
                     residence_id=residence.id,
-                    name=category_name
+                    name=category_name,
+                    created_by=creator_id
                 )
                 self.session.add(category)
                 all_categories.append(category)
@@ -317,7 +318,8 @@ class DatabaseSeeder:
                         status3=statuses[2] if len(statuses) > 2 else None,
                         status4=statuses[3] if len(statuses) > 3 else None,
                         status5=statuses[4] if len(statuses) > 4 else None,
-                        status6=statuses[5] if len(statuses) > 5 else None
+                        status6=statuses[5] if len(statuses) > 5 else None,
+                        created_by=creator_id
                     )
                     self.session.add(template)
                     all_templates.append(template)
@@ -433,7 +435,7 @@ class DatabaseSeeder:
         residents = await self.create_residents(10, beds, residences)
         
         # 6. Sistema de tareas básico
-        categories, templates = await self.create_task_system(residences)
+        categories, templates = await self.create_task_system(residences, superadmin.id)
         
         # 7. Asignaciones
         await self.assign_users_to_residences([manager, professional], residences)
@@ -479,7 +481,7 @@ class DatabaseSeeder:
         residents = await self.create_residents(60, beds, residences)
         
         # 5. Sistema de tareas
-        categories, templates = await self.create_task_system(residences)
+        categories, templates = await self.create_task_system(residences, superadmin.id)
         
         # 6. Dispositivos
         devices = await self.create_devices(20, residences)
@@ -534,7 +536,7 @@ class DatabaseSeeder:
         residents = await self.create_residents(200, beds, residences)
         
         # 5. Sistema de tareas
-        categories, templates = await self.create_task_system(residences)
+        categories, templates = await self.create_task_system(residences, superadmin.id)
         
         # 6. Dispositivos
         devices = await self.create_devices(48, residences)

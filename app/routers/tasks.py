@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.deps import get_db, get_current_user
 from app.models import (
     TaskCategory, TaskTemplate, TaskApplication,
-    Resident, UserResidence
+    Resident, UserResidence, Residence, User
 )
 from app.schemas import (
     TaskCategoryCreate, TaskCategoryUpdate, TaskCategoryOut,
@@ -16,7 +16,7 @@ from app.schemas import (
     TaskApplicationCreate, TaskApplicationUpdate, TaskApplicationOut,
     PaginationParams, PaginatedResponse, FilterParams
 )
-from app.security import new_uuid
+from app.security import new_uuid, decrypt_data
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -125,7 +125,41 @@ async def paginate_query_tasks(
     query = query.offset(offset).limit(pagination.size)
 
     result = await db.execute(query)
-    items = [dict(row._mapping) for row in result.scalars().all()]
+    objects = result.scalars().all()
+    
+    # Convert model objects to dictionaries and add residence name
+    items = []
+    for obj in objects:
+        if hasattr(obj, '__table__'):
+            # Es un modelo SQLAlchemy
+            item = {column.name: getattr(obj, column.name) for column in obj.__table__.columns}
+            
+            # Agregar nombre de residencia si es TaskCategory
+            if hasattr(obj, 'residence_id'):
+                residence_result = await db.execute(
+                    select(Residence.name).where(Residence.id == obj.residence_id)
+                )
+                residence_name = residence_result.scalar()
+                item['residence_name'] = residence_name
+            
+            # Agregar información del creador si existe
+            if hasattr(obj, 'created_by') and obj.created_by:
+                creator_result = await db.execute(
+                    select(User.name, User.alias_encrypted).where(User.id == obj.created_by)
+                )
+                creator = creator_result.first()
+                if creator:
+                    creator_alias = decrypt_data(creator[1]) if creator[1] else "N/A"
+                    item['created_by_info'] = {
+                        "id": obj.created_by,
+                        "name": creator[0],
+                        "alias": creator_alias
+                    }
+            
+            items.append(item)
+        else:
+            # Es otro tipo de objeto
+            items.append(dict(obj))
 
     pages = (total + pagination.size - 1) // pagination.size
     has_next = pagination.page < pages
@@ -148,13 +182,28 @@ async def create_category(
     payload: TaskCategoryCreate,
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="residence_id"),
 ):
-    rid = await _set_residence_context(db, current, residence_id)
     if current["role"] not in ("superadmin", "manager"):
         raise HTTPException(status_code=403, detail="Only manager/superadmin can create categories")
+    
+    rid = payload.residence_id
     if not rid:
-        raise HTTPException(status_code=428, detail="Select a residence (residence_id)")
+        raise HTTPException(status_code=428, detail="residence_id is required")
+
+    # Validar que el usuario tenga acceso a esta residencia (salvo superadmin)
+    if current["role"] != "superadmin":
+        from app.models import UserResidence
+        ok = await db.execute(
+            select(UserResidence).where(
+                UserResidence.user_id == current["id"],
+                UserResidence.residence_id == rid,
+            )
+        )
+        if ok.scalar_one_or_none() is None:
+            raise HTTPException(status_code=403, detail="Residence not allowed for this user")
+
+    # Configurar el contexto de residencia para RLS
+    rid = await _set_residence_context(db, current, rid)
 
     # nombre único por residencia
     exists = await db.scalar(
@@ -165,11 +214,42 @@ async def create_category(
     if exists:
         raise HTTPException(status_code=409, detail="Category name already exists in residence")
 
-    tc = TaskCategory(id=new_uuid(), residence_id=rid, name=payload.name)
+    tc = TaskCategory(
+        id=new_uuid(), 
+        residence_id=rid, 
+        name=payload.name,
+        created_by=current["id"]
+    )
     db.add(tc)
     await db.commit()
     await db.refresh(tc)
-    return tc
+    
+    # Obtener información del usuario creador
+    from app.models import User
+    creator_result = await db.execute(
+        select(User.name, User.alias_encrypted).where(User.id == current["id"])
+    )
+    creator = creator_result.first()
+    created_by_info = None
+    if creator:
+        from app.security import decrypt_data
+        creator_alias = decrypt_data(creator[1]) if creator[1] else "N/A"
+        created_by_info = {
+            "id": current["id"],
+            "name": creator[0],
+            "alias": creator_alias
+        }
+    
+    # Construir respuesta manualmente
+    return {
+        "id": tc.id,
+        "residence_id": tc.residence_id,
+        "name": tc.name,
+        "created_by_info": created_by_info,
+        "created_at": tc.created_at,
+        "updated_at": tc.updated_at,
+        "deleted_at": tc.deleted_at
+    }
 
 @router.get("/categories", response_model=PaginatedResponse)
 async def list_categories(
@@ -177,7 +257,7 @@ async def list_categories(
     filters: FilterParams = Depends(),
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="residence_id"),
+    residence_id: str | None = Query(None, description="Filter by residence ID"),
 ):
     rid = await _set_residence_context(db, current, residence_id)
     query = select(TaskCategory).where(TaskCategory.deleted_at.is_(None))
@@ -185,6 +265,9 @@ async def list_categories(
     if current["role"] != "superadmin":
         if not rid:
             raise HTTPException(status_code=428, detail="Select a residence (residence_id)")
+        query = query.where(TaskCategory.residence_id == rid)
+    elif rid:
+        # Superadmin con residence_id específico: filtrar por esa residencia
         query = query.where(TaskCategory.residence_id == rid)
 
     if filters and filters.search:
@@ -197,7 +280,7 @@ async def list_categories(
 async def list_categories_simple(
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="residence_id"),
+    residence_id: str | None = Query(None, description="Filter by residence ID"),
 ):
     """Legacy endpoint: List categories without pagination"""
     rid = await _set_residence_context(db, current, residence_id)
@@ -266,7 +349,7 @@ async def create_template(
     payload: TaskTemplateCreate,
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="residence_id"),
+    residence_id: str | None = Query(None, description="Filter by residence ID"),
 ):
     rid = await _set_residence_context(db, current, residence_id)
     if current["role"] not in ("superadmin", "manager"):
@@ -300,11 +383,47 @@ async def create_template(
         status4=payload.status4, status5=payload.status5, status6=payload.status6,
         audio_phrase=payload.audio_phrase,
         is_block=payload.is_block,
+        created_by=current["id"]
     )
     db.add(t)
     await db.commit()
     await db.refresh(t)
-    return t
+    
+    # Obtener información del usuario creador
+    from app.models import User
+    creator_result = await db.execute(
+        select(User.name, User.alias_encrypted).where(User.id == current["id"])
+    )
+    creator = creator_result.first()
+    created_by_info = None
+    if creator:
+        from app.security import decrypt_data
+        creator_alias = decrypt_data(creator[1]) if creator[1] else "N/A"
+        created_by_info = {
+            "id": current["id"],
+            "name": creator[0],
+            "alias": creator_alias
+        }
+    
+    # Construir respuesta manualmente
+    return {
+        "id": t.id,
+        "residence_id": t.residence_id,
+        "task_category_id": t.task_category_id,
+        "name": t.name,
+        "status1": t.status1,
+        "status2": t.status2,
+        "status3": t.status3,
+        "status4": t.status4,
+        "status5": t.status5,
+        "status6": t.status6,
+        "audio_phrase": t.audio_phrase,
+        "is_block": t.is_block,
+        "created_by_info": created_by_info,
+        "created_at": t.created_at,
+        "updated_at": t.updated_at,
+        "deleted_at": t.deleted_at
+    }
 
 @router.get("/templates", response_model=PaginatedResponse)
 async def list_templates(
@@ -312,7 +431,7 @@ async def list_templates(
     filters: FilterParams = Depends(),
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="residence_id"),
+    residence_id: str | None = Query(None, description="Filter by residence ID"),
     category_id: str | None = Query(None),
 ):
     rid = await _set_residence_context(db, current, residence_id)
@@ -321,6 +440,9 @@ async def list_templates(
     if current["role"] != "superadmin":
         if not rid:
             raise HTTPException(status_code=428, detail="Select a residence (residence_id)")
+        query = query.where(TaskTemplate.residence_id == rid)
+    elif rid:
+        # Superadmin con residence_id específico: filtrar por esa residencia
         query = query.where(TaskTemplate.residence_id == rid)
     if category_id:
         query = query.where(TaskTemplate.task_category_id == category_id)
@@ -335,7 +457,7 @@ async def list_templates(
 async def list_templates_simple(
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="residence_id"),
+    residence_id: str | None = Query(None, description="Filter by residence ID"),
     category_id: str | None = Query(None),
 ):
     """Legacy endpoint: List templates without pagination"""
@@ -344,6 +466,9 @@ async def list_templates_simple(
     if current["role"] != "superadmin":
         if not rid:
             raise HTTPException(status_code=428, detail="Select a residence (residence_id)")
+        conds.append(TaskTemplate.residence_id == rid)
+    elif rid:
+        # Superadmin con residence_id específico: filtrar por esa residencia
         conds.append(TaskTemplate.residence_id == rid)
     if category_id:
         conds.append(TaskTemplate.task_category_id == category_id)
@@ -418,7 +543,7 @@ async def apply_task(
     payload: TaskApplicationCreate,
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="residence_id"),
+    residence_id: str | None = Query(None, description="Filter by residence ID"),
 ):
     # Fijar/validar residencia
     rid = await _set_residence_context(db, current, residence_id)
@@ -468,7 +593,37 @@ async def apply_task(
     db.add(app)
     await db.commit()
     await db.refresh(app)
-    return app
+    
+    # Obtener información del usuario que aplicó la tarea
+    from app.models import User
+    applier_result = await db.execute(
+        select(User.name, User.alias_encrypted).where(User.id == current["id"])
+    )
+    applier = applier_result.first()
+    applied_by_info = None
+    if applier:
+        from app.security import decrypt_data
+        applier_alias = decrypt_data(applier[1]) if applier[1] else "N/A"
+        applied_by_info = {
+            "id": current["id"],
+            "name": applier[0],
+            "alias": applier_alias
+        }
+    
+    # Construir respuesta manualmente
+    return {
+        "id": app.id,
+        "residence_id": app.residence_id,
+        "resident_id": app.resident_id,
+        "task_template_id": app.task_template_id,
+        "applied_by_info": applied_by_info,
+        "applied_at": app.applied_at,
+        "selected_status_index": app.selected_status_index,
+        "selected_status_text": app.selected_status_text,
+        "created_at": app.created_at,
+        "updated_at": app.updated_at,
+        "deleted_at": app.deleted_at
+    }
 
 @router.get("/applications", response_model=PaginatedResponse)
 async def list_applications(
@@ -476,54 +631,115 @@ async def list_applications(
     filters: FilterParams = Depends(),
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="residence_id"),
-    resident_id: str | None = Query(None),
-    template_id: str | None = Query(None),
+    residence_id: str | None = Query(None, description="Filter by residence ID"),
+    resident_id: str | None = Query(None, description="Filter by resident ID"),
+    template_id: str | None = Query(None, description="Filter by template ID"),
+    category_id: str | None = Query(None, description="Filter by category ID"),
 ):
     rid = await _set_residence_context(db, current, residence_id)
 
-    query = select(TaskApplication).where(TaskApplication.deleted_at.is_(None))
+    # Si necesitamos filtrar por categoría, hacer JOIN con TaskTemplate
+    if category_id:
+        query = select(TaskApplication).join(TaskTemplate, TaskApplication.task_template_id == TaskTemplate.id).where(
+            TaskApplication.deleted_at.is_(None),
+            TaskTemplate.deleted_at.is_(None)
+        )
+    else:
+        query = select(TaskApplication).where(TaskApplication.deleted_at.is_(None))
 
     if current["role"] != "superadmin":
-        if not rid:
-            raise HTTPException(status_code=428, detail="Select a residence (residence_id)")
+        if rid:
+            # Usuario con residence_id específico: filtrar por esa residencia
+            query = query.where(TaskApplication.residence_id == rid)
+        else:
+            # Usuario sin residence_id: mostrar tareas de todas sus residencias asignadas
+            user_residences_result = await db.execute(
+                select(UserResidence.residence_id).where(
+                    UserResidence.user_id == current["id"]
+                )
+            )
+            allowed_residence_ids = [row[0] for row in user_residences_result.all()]
+            
+            if not allowed_residence_ids:
+                raise HTTPException(status_code=403, detail="No residences assigned")
+            
+            query = query.where(TaskApplication.residence_id.in_(allowed_residence_ids))
+    elif rid:
+        # Superadmin con residence_id específico: filtrar por esa residencia
         query = query.where(TaskApplication.residence_id == rid)
     if resident_id:
         query = query.where(TaskApplication.resident_id == resident_id)
     if template_id:
         query = query.where(TaskApplication.task_template_id == template_id)
+    if category_id:
+        query = query.where(TaskTemplate.task_category_id == category_id)
 
     if filters and filters.date_from:
         query = query.where(TaskApplication.applied_at >= filters.date_from)
     if filters and filters.date_to:
         query = query.where(TaskApplication.applied_at <= filters.date_to)
 
+    # Debug: verificar la consulta
+    print(f"DEBUG: Query final: {query}")
+    result = await db.execute(query.limit(5))  # Solo 5 para debug
+    debug_items = result.scalars().all()
+    print(f"DEBUG: Found {len(debug_items)} items")
+    
     return await paginate_query_tasks(query, db, pagination, filters)
 
 @router.get("/applications/simple", response_model=list[TaskApplicationOut])
 async def list_applications_simple(
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="residence_id"),
-    resident_id: str | None = Query(None),
-    template_id: str | None = Query(None),
+    residence_id: str | None = Query(None, description="Filter by residence ID"),
+    resident_id: str | None = Query(None, description="Filter by resident ID"),
+    template_id: str | None = Query(None, description="Filter by template ID"),
+    category_id: str | None = Query(None, description="Filter by category ID"),
     limit: int = Query(100, ge=1, le=1000),
 ):
     """Legacy endpoint: List applications without pagination"""
     rid = await _set_residence_context(db, current, residence_id)
 
-    conds = [TaskApplication.deleted_at.is_(None)]
+    # Si necesitamos filtrar por categoría, hacer JOIN con TaskTemplate
+    if category_id:
+        query = select(TaskApplication).join(TaskTemplate, TaskApplication.task_template_id == TaskTemplate.id)
+        conds = [
+            TaskApplication.deleted_at.is_(None),
+            TaskTemplate.deleted_at.is_(None)
+        ]
+    else:
+        query = select(TaskApplication)
+        conds = [TaskApplication.deleted_at.is_(None)]
+
     if current["role"] != "superadmin":
-        if not rid:
-            raise HTTPException(status_code=428, detail="Select a residence (residence_id)")
+        if rid:
+            # Usuario con residence_id específico: filtrar por esa residencia
+            conds.append(TaskApplication.residence_id == rid)
+        else:
+            # Usuario sin residence_id: mostrar tareas de todas sus residencias asignadas
+            user_residences_result = await db.execute(
+                select(UserResidence.residence_id).where(
+                    UserResidence.user_id == current["id"]
+                )
+            )
+            allowed_residence_ids = [row[0] for row in user_residences_result.all()]
+            
+            if not allowed_residence_ids:
+                raise HTTPException(status_code=403, detail="No residences assigned")
+            
+            conds.append(TaskApplication.residence_id.in_(allowed_residence_ids))
+    elif rid:
+        # Superadmin con residence_id específico: filtrar por esa residencia
         conds.append(TaskApplication.residence_id == rid)
     if resident_id:
         conds.append(TaskApplication.resident_id == resident_id)
     if template_id:
         conds.append(TaskApplication.task_template_id == template_id)
+    if category_id:
+        conds.append(TaskTemplate.task_category_id == category_id)
 
     q = await db.execute(
-        select(TaskApplication).where(and_(*conds)).order_by(TaskApplication.applied_at.desc()).limit(limit)
+        query.where(and_(*conds)).order_by(TaskApplication.applied_at.desc()).limit(limit)
     )
     return q.scalars().all()
 

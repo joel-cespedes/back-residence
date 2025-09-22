@@ -674,6 +674,25 @@ async def update_room(
     await db.execute(text("SELECT set_config('app.user_id', :uid, true)"), {"uid": current["id"]})
 
     update_data = data.dict(exclude_unset=True)
+    
+    # Si se va a cambiar el floor_id, validar que el nuevo piso existe y el usuario tenga acceso
+    if 'floor_id' in update_data and update_data['floor_id'] != room.floor_id:
+        new_floor = await get_floor_or_404(update_data['floor_id'], db)
+        
+        # Verificar que el usuario tenga acceso al nuevo piso
+        if current["role"] != "superadmin":
+            result = await db.execute(
+                select(UserResidence).where(
+                    UserResidence.user_id == current["id"],
+                    UserResidence.residence_id == new_floor.residence_id,
+                )
+            )
+            if result.scalar_one_or_none() is None:
+                raise HTTPException(status_code=403, detail="Access denied to the target floor")
+        
+        # Actualizar residence_id si el piso pertenece a otra residencia
+        room.residence_id = new_floor.residence_id
+    
     for field, value in update_data.items():
         setattr(room, field, value)
 

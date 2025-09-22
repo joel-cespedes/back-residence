@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -18,8 +18,10 @@ class TaskCategoryCreate(BaseModel):
 
     Attributes:
         name (str): Nombre de la categoría de tareas
+        residence_id (str): ID de la residencia a la que pertenece
     """
     name: str
+    residence_id: str
 
 
 class TaskCategoryUpdate(BaseModel):
@@ -40,6 +42,7 @@ class TaskCategoryOut(BaseModel):
         id (str): Identificador único de la categoría
         residence_id (str): ID de la residencia a la que pertenece
         name (str): Nombre de la categoría
+        created_by_info (Optional[Dict[str, Any]]): Información del usuario que creó la categoría
         created_at (datetime): Fecha de creación del registro
         updated_at (datetime): Fecha de última actualización
         deleted_at (Optional[datetime]): Fecha de eliminación (soft delete)
@@ -49,6 +52,7 @@ class TaskCategoryOut(BaseModel):
     id: str
     residence_id: str
     name: str
+    created_by_info: Optional[Dict[str, Any]] = None
     created_at: datetime
     updated_at: datetime
     deleted_at: Optional[datetime] = None
@@ -121,6 +125,7 @@ class TaskTemplateOut(BaseModel):
         status1-6 (Optional[str]): Textos para estados
         audio_phrase (Optional[str]): Frase de audio asociada
         is_block (Optional[bool]): Estado de bloqueo
+        created_by_info (Optional[Dict[str, Any]]): Información del usuario que creó la plantilla
         created_at (datetime): Fecha de creación del registro
         updated_at (datetime): Fecha de última actualización
         deleted_at (Optional[datetime]): Fecha de eliminación (soft delete)
@@ -139,6 +144,7 @@ class TaskTemplateOut(BaseModel):
     status6: Optional[str] = None
     audio_phrase: Optional[str] = None
     is_block: Optional[bool] = None
+    created_by_info: Optional[Dict[str, Any]] = None
     created_at: datetime
     updated_at: datetime
     deleted_at: Optional[datetime] = None
@@ -189,7 +195,7 @@ class TaskApplicationOut(BaseModel):
         residence_id (str): ID de la residencia a la que pertenece
         resident_id (str): ID del residente al que se aplica
         task_template_id (str): ID de la plantilla utilizada
-        applied_by (str): ID del usuario que aplicó la tarea
+        applied_by_info (Optional[Dict[str, Any]]): Información del usuario que aplicó la tarea
         applied_at (datetime): Fecha de aplicación de la tarea
         selected_status_index (Optional[int]): Índice del estado seleccionado
         selected_status_text (Optional[str]): Texto del estado seleccionado
@@ -203,7 +209,7 @@ class TaskApplicationOut(BaseModel):
     residence_id: str
     resident_id: str
     task_template_id: str
-    applied_by: str
+    applied_by_info: Optional[Dict[str, Any]] = None
     applied_at: datetime
     selected_status_index: Optional[int] = None
     selected_status_text: Optional[str] = None

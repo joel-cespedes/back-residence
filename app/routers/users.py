@@ -382,7 +382,10 @@ async def update_user(
         new_alias = payload["alias"].strip()
         current_alias = decrypt_data(user.alias_encrypted) if user.alias_encrypted else ""
         
-        print(f"DEBUG: Intentando cambiar alias de '{current_alias}' a '{new_alias}'")
+        print(f"DEBUG: Raw alias_encrypted: {user.alias_encrypted}")
+        print(f"DEBUG: Decrypted current alias: '{current_alias}'")
+        print(f"DEBUG: New alias from payload: '{new_alias}'")
+        print(f"DEBUG: Are they equal? {new_alias == current_alias}")
         
         if new_alias != current_alias:
             print(f"DEBUG: Alias diferente, procediendo con el cambio")

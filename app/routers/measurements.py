@@ -181,7 +181,7 @@ async def create_measurement(
     payload: MeasurementCreate,
     db: AsyncSession = Depends(get_db),                     # fija app.user_id
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="residence_id"),
+    residence_id: str | None = Query(None, description="Filter by residence ID"),
 ):
     """
     Crea una medición. Si el header residence_id no llega, se intenta inferir
@@ -244,7 +244,7 @@ async def list_measurements(
     filters: FilterParams = Depends(),
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="residence_id"),
+    residence_id: str | None = Query(None, description="Filter by residence ID"),
     resident_id: str | None = Query(None),
 ):
     """
@@ -278,7 +278,7 @@ async def list_measurements(
 async def list_measurements_simple(
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="residence_id"),
+    residence_id: str | None = Query(None, description="Filter by residence ID"),
     resident_id: str | None = Query(None),
     type: str | None = Query(None, description="bp|spo2|weight|temperature"),
     since: str | None = Query(None, description="ISO datetime"),
@@ -310,7 +310,7 @@ async def get_measurement(
     measurement_id: str,
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="residence_id"),
+    residence_id: str | None = Query(None, description="Filter by residence ID"),
 ):
     """Get a specific measurement"""
     measurement = await get_measurement_or_404(measurement_id, db)
@@ -326,7 +326,7 @@ async def update_measurement(
     payload: MeasurementUpdate,
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="residence_id"),
+    residence_id: str | None = Query(None, description="Filter by residence ID"),
 ):
     """Update a measurement"""
     measurement = await get_measurement_or_404(measurement_id, db)
@@ -368,7 +368,7 @@ async def patch_measurement(
     payload: MeasurementUpdate,
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="residence_id"),
+    residence_id: str | None = Query(None, description="Filter by residence ID"),
 ):
     """Patch a measurement (legacy endpoint)"""
     return await update_measurement(measurement_id, payload, db, current, residence_id)
@@ -378,7 +378,7 @@ async def delete_measurement(
     measurement_id: str,
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="residence_id"),
+    residence_id: str | None = Query(None, description="Filter by residence ID"),
 ):
     """Soft delete a measurement"""
     measurement = await get_measurement_or_404(measurement_id, db)
@@ -400,7 +400,7 @@ async def get_measurement_history(
     measurement_id: str,
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Header(None, alias="residence_id"),
+    residence_id: str | None = Query(None, description="Filter by residence ID"),
 ):
     """Get measurement history"""
     measurement = await get_measurement_or_404(measurement_id, db)

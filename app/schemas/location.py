@@ -71,8 +71,10 @@ class RoomUpdate(BaseModel):
 
     Attributes:
         name (Optional[str]): Nuevo nombre de la habitación
+        floor_id (Optional[str]): Nuevo piso de la habitación
     """
     name: Optional[str] = None
+    floor_id: Optional[str] = None
 
 
 class RoomOut(BaseModel):
