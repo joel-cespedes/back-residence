@@ -206,7 +206,15 @@ async def list_users(
         
         if not accessible_residences:
             # No residences = no users visible
-            return PaginatedResponse(items=[], total=0, page=pagination.page, size=pagination.size)
+            return PaginatedResponse(
+                items=[], 
+                total=0, 
+                page=pagination.page, 
+                size=pagination.size,
+                pages=0,
+                has_next=False,
+                has_prev=False
+            )
         
         # Join with UserResidence to filter by accessible residences
         base_query = base_query.join(UserResidence, UserResidence.user_id == User.id).where(
@@ -257,11 +265,19 @@ async def list_users(
             "updated_at": user.updated_at
         })
     
+    # Calculate pagination metadata
+    pages = (total + pagination.size - 1) // pagination.size  # Ceiling division
+    has_next = pagination.page < pages
+    has_prev = pagination.page > 1
+    
     return PaginatedResponse(
         items=items,
         total=total,
         page=pagination.page,
-        size=pagination.size
+        size=pagination.size,
+        pages=pages,
+        has_next=has_next,
+        has_prev=has_prev
     )
 
 @user_router.get("/{user_id}", response_model=dict)
