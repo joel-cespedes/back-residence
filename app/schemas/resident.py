@@ -46,6 +46,7 @@ class ResidentUpdate(BaseModel):
         sex (Optional[str]): Nuevo sexo
         comments (Optional[str]): Nuevos comentarios
         status (Optional[ResidentStatus]): Nuevo estado
+        residence_id (Optional[str]): Nueva residencia
         bed_id (Optional[str]): Nueva cama asignada
     """
     full_name: Optional[str] = None
@@ -53,6 +54,7 @@ class ResidentUpdate(BaseModel):
     sex: Optional[str] = None
     comments: Optional[str] = None
     status: Optional[ResidentStatus] = None
+    residence_id: Optional[str] = None
     bed_id: Optional[str] = None
 
 

@@ -304,7 +304,14 @@ async def update_resident(
     current = Depends(get_current_user),
 ):
     """Update a resident"""
+    import logging
+    logger = logging.getLogger(__name__)
+
+    print(f"PUT - Starting update for resident ID: {id}")
+    print(f"PUT - Data received: {data}")
+
     resident = await get_resident_or_404(id, db)
+    print(f"PUT - Resident found: {resident.residence_id}")
 
     # Validate access to resident's residence
     await PermissionService.validate_residence_access(
@@ -318,8 +325,27 @@ async def update_resident(
         bed = bed_result.scalar_one_or_none()
         if not bed:
             raise HTTPException(status_code=404, detail="Bed not found")
+
+        # Log para depuración
+        print(f"PUT - Bed residence_id: {bed.residence_id}")
+        print(f"PUT - Resident residence_id: {resident.residence_id}")
+        print(f"PUT - Data residence_id: {data.residence_id}")
+
         if bed.residence_id != resident.residence_id:
-            raise HTTPException(status_code=400, detail="Bed must belong to the same residence")
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "cross_residence_bed_assignment",
+                    "message": "No puedes asignar una cama de una residencia diferente",
+                    "steps_required": [
+                        "1. Primero quita la cama actual (deja bed_id vacío)",
+                        "2. Luego actualiza la residencia si es necesario",
+                        "3. Finalmente asigna la nueva cama"
+                    ],
+                    "current_resident_residence": resident.residence_id,
+                    "target_bed_residence": bed.residence_id
+                }
+            )
 
     await db.execute(text("SELECT set_config('app.user_id', :uid, true)"), {"uid": current["id"]})
 
