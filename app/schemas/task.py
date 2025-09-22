@@ -67,6 +67,7 @@ class TaskTemplateCreate(BaseModel):
     Esquema para la creación de una nueva plantilla de tarea.
 
     Attributes:
+        residence_id (str): ID de la residencia a la que pertenece
         task_category_id (str): ID de la categoría a la que pertenece
         name (str): Nombre de la plantilla de tarea
         status1 (Optional[str]): Texto para estado 1
@@ -78,6 +79,7 @@ class TaskTemplateCreate(BaseModel):
         audio_phrase (Optional[str]): Frase de audio asociada
         is_block (Optional[bool]): Indica si es una tarea de bloqueo
     """
+    residence_id: str
     task_category_id: str
     name: str
     status1: Optional[str] = None

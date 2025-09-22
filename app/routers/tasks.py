@@ -142,6 +142,14 @@ async def paginate_query_tasks(
                 residence_name = residence_result.scalar()
                 item['residence_name'] = residence_name
             
+            # Agregar nombre de categoría si es TaskTemplate
+            if hasattr(obj, 'task_category_id'):
+                category_result = await db.execute(
+                    select(TaskCategory.name).where(TaskCategory.id == obj.task_category_id)
+                )
+                category_name = category_result.scalar()
+                item['category_name'] = category_name
+            
             # Agregar información del creador si existe
             if hasattr(obj, 'created_by') and obj.created_by:
                 creator_result = await db.execute(
@@ -349,13 +357,28 @@ async def create_template(
     payload: TaskTemplateCreate,
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
-    residence_id: str | None = Query(None, description="Filter by residence ID"),
 ):
-    rid = await _set_residence_context(db, current, residence_id)
     if current["role"] not in ("superadmin", "manager"):
         raise HTTPException(status_code=403, detail="Only manager/superadmin can create templates")
+    
+    rid = payload.residence_id
     if not rid:
-        raise HTTPException(status_code=428, detail="Select a residence (residence_id)")
+        raise HTTPException(status_code=428, detail="residence_id is required")
+
+    # Validar que el usuario tenga acceso a esta residencia (salvo superadmin)
+    if current["role"] != "superadmin":
+        from app.models import UserResidence
+        ok = await db.execute(
+            select(UserResidence).where(
+                UserResidence.user_id == current["id"],
+                UserResidence.residence_id == rid,
+            )
+        )
+        if ok.scalar_one_or_none() is None:
+            raise HTTPException(status_code=403, detail="Residence not allowed for this user")
+
+    # Configurar el contexto de residencia para RLS
+    rid = await _set_residence_context(db, current, rid)
 
     # comprobar categoría pertenece a la misma residencia
     c = await db.scalar(

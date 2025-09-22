@@ -327,7 +327,7 @@ class DatabaseSeeder:
         await self.session.flush()
         return all_categories, all_templates
 
-    async def create_devices(self, count: int, residences: List[Residence]) -> List[Device]:
+    async def create_devices(self, count: int, residences: List[Residence], users: List[User]) -> List[Device]:
         """Crea dispositivos médicos"""
         print(f"📱 Creando {count} dispositivos...")
         devices = []
@@ -341,13 +341,17 @@ class DatabaseSeeder:
             # MAC única
             mac = f"00:1B:44:11:{(i//256):02X}:{(i%256):02X}"
 
+            # Asignar un usuario creador aleatorio
+            creator = random.choice(users)
+
             device = Device(
                 id=str(uuid.uuid4()),
                 residence_id=residence.id,
                 type=device_type,
                 name=f"{device_name} #{i+1}",
                 mac=mac,
-                battery_percent=random.randint(20, 100)
+                battery_percent=random.randint(20, 100),
+                created_by=creator.id
             )
 
             self.session.add(device)
@@ -483,11 +487,13 @@ class DatabaseSeeder:
         # 5. Sistema de tareas
         categories, templates = await self.create_task_system(residences, superadmin.id)
         
-        # 6. Dispositivos
-        devices = await self.create_devices(20, residences)
-        
-        # 7. Etiquetas
+        # 6. Usuarios para asignaciones
         all_users = [superadmin] + managers + professionals
+        
+        # 7. Dispositivos
+        devices = await self.create_devices(20, residences, all_users)
+        
+        # 8. Etiquetas
         tags = await self.create_tags_and_assignments(residents, all_users)
         
         # 8. Asignaciones
@@ -538,11 +544,13 @@ class DatabaseSeeder:
         # 5. Sistema de tareas
         categories, templates = await self.create_task_system(residences, superadmin.id)
         
-        # 6. Dispositivos
-        devices = await self.create_devices(48, residences)
-        
-        # 7. Etiquetas
+        # 6. Usuarios para asignaciones
         all_users = [superadmin] + managers + professionals
+        
+        # 7. Dispositivos
+        devices = await self.create_devices(48, residences, all_users)
+        
+        # 8. Etiquetas
         tags = await self.create_tags_and_assignments(residents, all_users)
         
         # 8. Asignaciones

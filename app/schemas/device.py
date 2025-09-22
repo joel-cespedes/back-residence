@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -53,10 +53,12 @@ class DeviceOut(BaseModel):
     Attributes:
         id (str): Identificador único del dispositivo
         residence_id (str): ID de la residencia a la que pertenece
+        residence_info (Optional[Dict[str, Any]]): Información de la residencia
         type (DeviceType): Tipo de dispositivo
         name (str): Nombre del dispositivo
         mac (str): Dirección MAC del dispositivo
         battery_percent (Optional[int]): Porcentaje actual de batería
+        created_by_info (Optional[Dict[str, Any]]): Información del usuario que creó el dispositivo
         created_at (datetime): Fecha de creación del registro
         updated_at (datetime): Fecha de última actualización
         deleted_at (Optional[datetime]): Fecha de eliminación (soft delete)
@@ -65,10 +67,12 @@ class DeviceOut(BaseModel):
 
     id: str
     residence_id: str
+    residence_info: Optional[Dict[str, Any]] = None
     type: DeviceType
     name: str
     mac: str
     battery_percent: Optional[int] = None
+    created_by_info: Optional[Dict[str, Any]] = None
     created_at: datetime
     updated_at: datetime
     deleted_at: Optional[datetime] = None

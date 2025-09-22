@@ -81,7 +81,53 @@ async def paginate_query_devices(
     query = query.offset(offset).limit(pagination.size)
 
     result = await db.execute(query)
-    items = [dict(row._mapping) for row in result.scalars().all()]
+    devices = result.scalars().all()
+    
+    # Agregar created_by_info y residence_info a cada dispositivo
+    items = []
+    for device in devices:
+        item = {
+            "id": device.id,
+            "residence_id": device.residence_id,
+            "type": device.type,
+            "name": device.name,
+            "mac": device.mac,
+            "battery_percent": device.battery_percent,
+            "created_at": device.created_at,
+            "updated_at": device.updated_at,
+            "deleted_at": device.deleted_at
+        }
+        
+        # Obtener información del usuario creador
+        if device.created_by:
+            from app.security import decrypt_data
+            creator_result = await db.execute(
+                select(User.name, User.alias_encrypted).where(User.id == device.created_by)
+            )
+            creator = creator_result.first()
+            if creator:
+                creator_alias = decrypt_data(creator[1]) if creator[1] else "N/A"
+                item["created_by_info"] = {
+                    "id": device.created_by,
+                    "name": creator[0],
+                    "alias": creator_alias
+                }
+            else:
+                item["created_by_info"] = None
+        else:
+            item["created_by_info"] = None
+
+        # Obtener información de la residencia
+        residence_result = await db.execute(
+            select(Residence.name).where(Residence.id == device.residence_id)
+        )
+        residence_name = residence_result.scalar()
+        item["residence_info"] = {
+            "id": device.residence_id,
+            "name": residence_name
+        }
+            
+        items.append(item)
 
     pages = (total + pagination.size - 1) // pagination.size
     has_next = pagination.page < pages
@@ -134,7 +180,47 @@ async def create_device(
     db.add(device)
     await db.commit()
     await db.refresh(device)
-    return device
+
+    # Obtener información del usuario creador
+    from app.security import decrypt_data
+    created_by_info = None
+    if device.created_by:
+        creator_result = await db.execute(
+            select(User.name, User.alias_encrypted).where(User.id == device.created_by)
+        )
+        creator = creator_result.first()
+        if creator:
+            creator_alias = decrypt_data(creator[1]) if creator[1] else "N/A"
+            created_by_info = {
+                "id": device.created_by,
+                "name": creator[0],
+                "alias": creator_alias
+            }
+
+    # Obtener información de la residencia
+    residence_result = await db.execute(
+        select(Residence.name).where(Residence.id == device.residence_id)
+    )
+    residence_name = residence_result.scalar()
+    residence_info = {
+        "id": device.residence_id,
+        "name": residence_name
+    }
+
+    # Construir respuesta manualmente
+    return {
+        "id": device.id,
+        "residence_id": device.residence_id,
+        "residence_info": residence_info,
+        "type": device.type,
+        "name": device.name,
+        "mac": device.mac,
+        "battery_percent": device.battery_percent,
+        "created_by_info": created_by_info,
+        "created_at": device.created_at,
+        "updated_at": device.updated_at,
+        "deleted_at": device.deleted_at
+    }
 
 @router.get("/", response_model=PaginatedResponse)
 async def list_devices(
@@ -178,7 +264,46 @@ async def get_device(
         if result.scalar_one_or_none() is None:
             raise HTTPException(status_code=403, detail="Access denied to this device")
 
-    return device
+    # Obtener información del usuario creador
+    created_by_info = None
+    if device.created_by:
+        from app.security import decrypt_data
+        creator_result = await db.execute(
+            select(User.name, User.alias_encrypted).where(User.id == device.created_by)
+        )
+        creator = creator_result.first()
+        if creator:
+            creator_alias = decrypt_data(creator[1]) if creator[1] else "N/A"
+            created_by_info = {
+                "id": device.created_by,
+                "name": creator[0],
+                "alias": creator_alias
+            }
+
+    # Obtener información de la residencia
+    residence_result = await db.execute(
+        select(Residence.name).where(Residence.id == device.residence_id)
+    )
+    residence_name = residence_result.scalar()
+    residence_info = {
+        "id": device.residence_id,
+        "name": residence_name
+    }
+
+    # Construir respuesta manualmente
+    return {
+        "id": device.id,
+        "residence_id": device.residence_id,
+        "residence_info": residence_info,
+        "type": device.type,
+        "name": device.name,
+        "mac": device.mac,
+        "battery_percent": device.battery_percent,
+        "created_by_info": created_by_info,
+        "created_at": device.created_at,
+        "updated_at": device.updated_at,
+        "deleted_at": device.deleted_at
+    }
 
 @router.put("/{id}", response_model=DeviceOut)
 async def update_device(
@@ -220,7 +345,47 @@ async def update_device(
 
     await db.commit()
     await db.refresh(device)
-    return device
+
+    # Obtener información del usuario creador
+    created_by_info = None
+    if device.created_by:
+        from app.security import decrypt_data
+        creator_result = await db.execute(
+            select(User.name, User.alias_encrypted).where(User.id == device.created_by)
+        )
+        creator = creator_result.first()
+        if creator:
+            creator_alias = decrypt_data(creator[1]) if creator[1] else "N/A"
+            created_by_info = {
+                "id": device.created_by,
+                "name": creator[0],
+                "alias": creator_alias
+            }
+
+    # Obtener información de la residencia
+    residence_result = await db.execute(
+        select(Residence.name).where(Residence.id == device.residence_id)
+    )
+    residence_name = residence_result.scalar()
+    residence_info = {
+        "id": device.residence_id,
+        "name": residence_name
+    }
+
+    # Construir respuesta manualmente
+    return {
+        "id": device.id,
+        "residence_id": device.residence_id,
+        "residence_info": residence_info,
+        "type": device.type,
+        "name": device.name,
+        "mac": device.mac,
+        "battery_percent": device.battery_percent,
+        "created_by_info": created_by_info,
+        "created_at": device.created_at,
+        "updated_at": device.updated_at,
+        "deleted_at": device.deleted_at
+    }
 
 @router.delete("/{id}", status_code=204)
 async def delete_device(
