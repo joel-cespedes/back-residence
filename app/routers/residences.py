@@ -175,6 +175,248 @@ def _hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
 
 
+@user_router.get("/", response_model=PaginatedResponse)
+async def list_users(
+    pagination: PaginationParams = Depends(),
+    filters: FilterParams = Depends(),
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+    role: str = Query(None, description="Filter by role: manager, professional"),
+):
+    """List users with pagination and role-based filtering"""
+    
+    # Build base query
+    base_query = select(User).where(User.deleted_at.is_(None))
+    
+    # Apply role filter if provided
+    if role:
+        if role not in ["manager", "professional"]:
+            raise HTTPException(status_code=400, detail="Invalid role filter")
+        base_query = base_query.where(User.role == role)
+    else:
+        # Exclude superadmin from general listing
+        base_query = base_query.where(User.role.in_(["manager", "professional"]))
+    
+    # Apply permission-based filtering
+    if current["role"] != "superadmin":
+        # Managers can only see users in their assigned residences
+        accessible_residences = await PermissionService.get_accessible_residence_ids(
+            db, current["id"], current["role"]
+        )
+        
+        if not accessible_residences:
+            # No residences = no users visible
+            return PaginatedResponse(items=[], total=0, page=pagination.page, size=pagination.size)
+        
+        # Join with UserResidence to filter by accessible residences
+        base_query = base_query.join(UserResidence, UserResidence.user_id == User.id).where(
+            UserResidence.residence_id.in_(accessible_residences)
+        ).distinct()
+    
+    # Apply search filter if provided
+    if filters.search:
+        # Since alias is encrypted, we can't search by it directly
+        # We'll search by role for now
+        base_query = base_query.where(User.role.ilike(f"%{filters.search}%"))
+    
+    # Get total count
+    count_result = await db.execute(select(func.count()).select_from(base_query.subquery()))
+    total = count_result.scalar()
+    
+    # Apply pagination and sorting
+    if pagination.sort_by == "created_at":
+        if pagination.sort_order == "desc":
+            base_query = base_query.order_by(User.created_at.desc())
+        else:
+            base_query = base_query.order_by(User.created_at.asc())
+    
+    base_query = base_query.offset((pagination.page - 1) * pagination.size).limit(pagination.size)
+    
+    # Execute query
+    result = await db.execute(base_query)
+    users = result.scalars().all()
+    
+    # Get residence assignments for each user
+    items = []
+    for user in users:
+        # Get user's residence assignments
+        residence_result = await db.execute(
+            select(UserResidence.residence_id).where(UserResidence.user_id == user.id)
+        )
+        residence_ids = [row[0] for row in residence_result.fetchall()]
+        
+        # Decrypt alias for display
+        alias = decrypt_data(user.alias_encrypted) if user.alias_encrypted else "N/A"
+        
+        items.append({
+            "id": user.id,
+            "alias": alias,
+            "role": user.role,
+            "residence_ids": residence_ids,
+            "created_at": user.created_at,
+            "updated_at": user.updated_at
+        })
+    
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        page=pagination.page,
+        size=pagination.size
+    )
+
+@user_router.get("/{user_id}", response_model=dict)
+async def get_user(
+    user_id: str,
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+):
+    """Get a specific user by ID"""
+    
+    # Get user
+    result = await db.execute(
+        select(User).where(User.id == user_id, User.deleted_at.is_(None))
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check permissions
+    if current["role"] != "superadmin":
+        # Managers can only see users in their accessible residences
+        user_residences = await db.execute(
+            select(UserResidence.residence_id).where(UserResidence.user_id == user.id)
+        )
+        user_residence_ids = [row[0] for row in user_residences.fetchall()]
+        
+        accessible_residences = await PermissionService.get_accessible_residence_ids(
+            db, current["id"], current["role"]
+        )
+        
+        # Check if there's any overlap
+        if not any(rid in accessible_residences for rid in user_residence_ids):
+            raise HTTPException(status_code=403, detail="Access denied to this user")
+    
+    # Get user's residence assignments with names
+    residence_result = await db.execute(
+        select(Residence.id, Residence.name)
+        .join(UserResidence, UserResidence.residence_id == Residence.id)
+        .where(UserResidence.user_id == user.id, Residence.deleted_at.is_(None))
+    )
+    residences = [{"id": row[0], "name": row[1]} for row in residence_result.fetchall()]
+    
+    # Decrypt alias
+    alias = decrypt_data(user.alias_encrypted) if user.alias_encrypted else "N/A"
+    
+    return {
+        "id": user.id,
+        "alias": alias,
+        "role": user.role,
+        "residences": residences,
+        "created_at": user.created_at,
+        "updated_at": user.updated_at
+    }
+
+@user_router.put("/{user_id}", response_model=dict)
+async def update_user(
+    user_id: str,
+    payload: dict = Body(...),
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+):
+    """Update a user and their residence assignments"""
+    
+    # Get user
+    result = await db.execute(
+        select(User).where(User.id == user_id, User.deleted_at.is_(None))
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check permissions to manage this user
+    if not PermissionService.can_manage_users(current["role"], user.role):
+        raise HTTPException(status_code=403, detail="Cannot manage this user type")
+    
+    # Validate residence assignments if provided
+    new_residence_ids = payload.get("residence_ids", [])
+    if new_residence_ids:
+        # Validate residences exist
+        valid_residences = await _validate_residences_exist(db, new_residence_ids)
+        
+        # Check assignment scope
+        await _validate_assignment_scope(db, current["role"], current["id"], valid_residences)
+    
+    # Update password if provided
+    if "password" in payload and payload["password"]:
+        user.password_hash = _hash_password(payload["password"])
+    
+    # Update residence assignments if provided
+    if "residence_ids" in payload:
+        # Remove existing assignments
+        await db.execute(
+            text("DELETE FROM user_residence WHERE user_id = :user_id"),
+            {"user_id": user_id}
+        )
+        
+        # Add new assignments
+        for residence_id in new_residence_ids:
+            assignment = UserResidence(user_id=user_id, residence_id=residence_id)
+            db.add(assignment)
+    
+    await db.commit()
+    await db.refresh(user)
+    
+    # Get updated residence assignments
+    residence_result = await db.execute(
+        select(Residence.id, Residence.name)
+        .join(UserResidence, UserResidence.residence_id == Residence.id)
+        .where(UserResidence.user_id == user.id, Residence.deleted_at.is_(None))
+    )
+    residences = [{"id": row[0], "name": row[1]} for row in residence_result.fetchall()]
+    
+    alias = decrypt_data(user.alias_encrypted) if user.alias_encrypted else "N/A"
+    
+    return {
+        "id": user.id,
+        "alias": alias,
+        "role": user.role,
+        "residences": residences,
+        "created_at": user.created_at,
+        "updated_at": user.updated_at
+    }
+
+@user_router.delete("/{user_id}", status_code=204)
+async def delete_user(
+    user_id: str,
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+):
+    """Soft delete a user"""
+    
+    # Get user
+    result = await db.execute(
+        select(User).where(User.id == user_id, User.deleted_at.is_(None))
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check permissions
+    if not PermissionService.can_manage_users(current["role"], user.role):
+        raise HTTPException(status_code=403, detail="Cannot delete this user type")
+    
+    # Prevent self-deletion
+    if user.id == current["id"]:
+        raise HTTPException(status_code=400, detail="Cannot delete yourself")
+    
+    # Soft delete
+    user.deleted_at = func.now()
+    
+    await db.commit()
+
 @user_router.post("/", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 async def create_user(
     payload: UserCreate,
