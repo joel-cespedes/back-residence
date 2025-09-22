@@ -56,6 +56,7 @@ class UserCreate(BaseModel):
     """Payload para crear usuarios."""
 
     alias: str = Field(..., min_length=1, description="Alias único del usuario")
+    name: str = Field(..., min_length=1, description="Nombre completo del usuario")
     password: str = Field(..., min_length=6, description="Contraseña definida por el creador")
     role: UserRole = Field(..., description="Rol del nuevo usuario")
     residence_ids: List[str] = Field(default_factory=list, description="Residencias asignadas")

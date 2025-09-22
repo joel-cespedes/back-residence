@@ -132,7 +132,7 @@ class DatabaseSeeder:
         salt = bcrypt.gensalt()
         return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
-    async def create_user(self, alias: str, password: str, role: str, email: str = None, phone: str = None) -> User:
+    async def create_user(self, alias: str, password: str, role: str, name: str = None, email: str = None, phone: str = None, created_by_id: str = None) -> User:
         """Crea un usuario con datos encriptados"""
         user_id = str(uuid.uuid4())
         password_hash = await self.hash_password(password)
@@ -142,9 +142,11 @@ class DatabaseSeeder:
         user = User(
             id=user_id,
             role=role,
-            alias_encrypted=alias_encrypted.encode('utf-8'),
+            alias_encrypted=alias.encode('utf-8'),  # Guardar alias original encriptado
             alias_hash=alias_hash,
             password_hash=password_hash,
+            name=name,
+            created_by=created_by_id,  # NULL para superadmin, ID del creador para otros
             email_encrypted=email.encode('utf-8') if email else None,
             phone_encrypted=phone.encode('utf-8') if phone else None
         )
@@ -413,7 +415,7 @@ class DatabaseSeeder:
         
         # 1. Superadmin
         superadmin = await self.create_user(
-            "admin", "admin123", "superadmin", 
+            "admin", "admin123", "superadmin", "Administrador del Sistema",
             "admin@residencias.com", "+34 600 000 000"
         )
         
@@ -421,8 +423,8 @@ class DatabaseSeeder:
         residences = await self.create_residences(1)
         
         # 3. Un gestor y un profesional
-        manager = await self.create_user("manager1", "manager123", "manager")
-        professional = await self.create_user("prof1", "prof123", "professional")
+        manager = await self.create_user("manager1", "manager123", "manager", "Gestor Principal", created_by_id=superadmin.id)
+        professional = await self.create_user("prof1", "prof123", "professional", "Profesional de Cuidados", created_by_id=superadmin.id)
         
         # 4. Estructura básica
         floors, rooms, beds = await self.create_structure(residences)
@@ -445,23 +447,25 @@ class DatabaseSeeder:
         
         # 1. Usuarios del sistema
         superadmin = await self.create_user(
-            "admin", "admin123", "superadmin",
+            "admin", "admin123", "superadmin", "Administrador del Sistema",
             "admin@residencias.com", "+34 600 000 000"
         )
         
         managers = []
         for i, name in enumerate(NOMBRES_USUARIOS["managers"][:4]):
             manager = await self.create_user(
-                f"manager{i+1}", "manager123", "manager",
-                f"manager{i+1}@residencias.com", f"+34 600 00{i+1} 00{i+1}"
+                f"manager{i+1}", "manager123", "manager", name,
+                f"manager{i+1}@residencias.com", f"+34 600 00{i+1} 00{i+1}",
+                superadmin.id  # Creado por el superadmin
             )
             managers.append(manager)
         
         professionals = []
         for i, name in enumerate(NOMBRES_USUARIOS["professionals"][:8]):
             prof = await self.create_user(
-                f"prof{i+1}", "prof123", "professional",
-                f"prof{i+1}@residencias.com", f"+34 700 00{i+1} 00{i+1}"
+                f"prof{i+1}", "prof123", "professional", name,
+                f"prof{i+1}@residencias.com", f"+34 700 00{i+1} 00{i+1}",
+                superadmin.id  # Creado por el superadmin
             )
             professionals.append(prof)
         
@@ -496,7 +500,7 @@ class DatabaseSeeder:
         
         # 1. Usuarios del sistema
         superadmin = await self.create_user(
-            "admin", "admin123", "superadmin",
+            "admin", "admin123", "superadmin", "Administrador del Sistema",
             "admin@residencias.com", "+34 600 000 000"
         )
         
@@ -504,8 +508,9 @@ class DatabaseSeeder:
         for i in range(12):
             name = NOMBRES_USUARIOS["managers"][i % len(NOMBRES_USUARIOS["managers"])]
             manager = await self.create_user(
-                f"manager{i+1}", "manager123", "manager",
-                f"manager{i+1}@residencias.com", f"+34 600 {i+100:03d} {i+100:03d}"
+                f"manager{i+1}", "manager123", "manager", name,
+                f"manager{i+1}@residencias.com", f"+34 600 {i+100:03d} {i+100:03d}",
+                superadmin.id  # Creado por el superadmin
             )
             managers.append(manager)
         
@@ -513,8 +518,9 @@ class DatabaseSeeder:
         for i in range(30):
             name = NOMBRES_USUARIOS["professionals"][i % len(NOMBRES_USUARIOS["professionals"])]
             prof = await self.create_user(
-                f"prof{i+1}", "prof123", "professional",
-                f"prof{i+1}@residencias.com", f"+34 700 {i+100:03d} {i+100:03d}"
+                f"prof{i+1}", "prof123", "professional", name,
+                f"prof{i+1}@residencias.com", f"+34 700 {i+100:03d} {i+100:03d}",
+                superadmin.id  # Creado por el superadmin
             )
             professionals.append(prof)
         

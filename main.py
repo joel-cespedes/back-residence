@@ -3,15 +3,15 @@ from fastapi import FastAPI, Depends
 from app.middlewares import setup_middlewares
 from app.deps import get_current_user
 from app.exceptions import setup_exception_handlers
-from app.routers import auth, residences, structure, residents, tags, devices, tasks, measurements, dashboard
+from app.routers import auth, users, residences, structure, residents, tags, devices, tasks, measurements, dashboard
 
 app = FastAPI(title="Residences API", version="1.0.0")
 setup_middlewares(app)
 setup_exception_handlers(app)
 
 app.include_router(auth.router)
+app.include_router(users.router)
 app.include_router(residences.router)
-app.include_router(residences.user_router)
 app.include_router(structure.router)
 app.include_router(residents.router)
 app.include_router(tags.router)
