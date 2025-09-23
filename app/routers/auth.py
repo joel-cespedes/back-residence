@@ -5,11 +5,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schemas import LoginRequest, TokenResponse, Me
+from app.schemas import LoginRequest, TokenResponse
 from app.models import User
 from app.security import hash_alias, verify_password, create_access_token
 from app.db import get_session_anon
-from app.deps import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -33,8 +32,3 @@ async def login(
     token = create_access_token(sub=str(user.id), role=user.role, alias=data.alias)
     return TokenResponse(access_token=token)
 
-@router.get("/me", response_model=Me)
-async def me(current = Depends(get_current_user)):
-    # Get alias from the JWT token (stored during login)
-    alias = current.get("alias", None)
-    return Me(id=current["id"], role=current["role"], alias=alias)
