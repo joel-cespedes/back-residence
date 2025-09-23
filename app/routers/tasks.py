@@ -267,16 +267,32 @@ async def list_categories(
     current = Depends(get_current_user),
     residence_id: str | None = Query(None, description="Filter by residence ID"),
 ):
-    rid = await _set_residence_context(db, current, residence_id)
     query = select(TaskCategory).where(TaskCategory.deleted_at.is_(None))
 
     if current["role"] != "superadmin":
-        if not rid:
-            raise HTTPException(status_code=428, detail="Select a residence (residence_id)")
-        query = query.where(TaskCategory.residence_id == rid)
-    elif rid:
+        # Gestores y profesionales: mostrar categorías de sus residencias asignadas
+        user_residences_result = await db.execute(
+            select(UserResidence.residence_id).where(
+                UserResidence.user_id == current["id"],
+                UserResidence.deleted_at.is_(None)
+            )
+        )
+        allowed_residence_ids = [row[0] for row in user_residences_result.all()]
+
+        if not allowed_residence_ids:
+            raise HTTPException(status_code=403, detail="No residences assigned")
+
+        # Si se proporciona residence_id, verificar que el usuario tenga acceso
+        if residence_id:
+            if residence_id not in allowed_residence_ids:
+                raise HTTPException(status_code=403, detail="Access denied to this residence")
+            query = query.where(TaskCategory.residence_id == residence_id)
+        else:
+            # Sin residence_id: mostrar categorías de todas las residencias asignadas
+            query = query.where(TaskCategory.residence_id.in_(allowed_residence_ids))
+    elif residence_id:
         # Superadmin con residence_id específico: filtrar por esa residencia
-        query = query.where(TaskCategory.residence_id == rid)
+        query = query.where(TaskCategory.residence_id == residence_id)
 
     if filters and filters.search:
         search_term = f"%{filters.search}%"
@@ -291,12 +307,32 @@ async def list_categories_simple(
     residence_id: str | None = Query(None, description="Filter by residence ID"),
 ):
     """Legacy endpoint: List categories without pagination"""
-    rid = await _set_residence_context(db, current, residence_id)
     conds = [TaskCategory.deleted_at.is_(None)]
+    
     if current["role"] != "superadmin":
-        if not rid:
-            raise HTTPException(status_code=428, detail="Select a residence (residence_id)")
-        conds.append(TaskCategory.residence_id == rid)
+        # Gestores y profesionales: mostrar categorías de sus residencias asignadas
+        user_residences_result = await db.execute(
+            select(UserResidence.residence_id).where(
+                UserResidence.user_id == current["id"],
+                UserResidence.deleted_at.is_(None)
+            )
+        )
+        allowed_residence_ids = [row[0] for row in user_residences_result.all()]
+
+        if not allowed_residence_ids:
+            raise HTTPException(status_code=403, detail="No residences assigned")
+
+        # Si se proporciona residence_id, verificar que el usuario tenga acceso
+        if residence_id:
+            if residence_id not in allowed_residence_ids:
+                raise HTTPException(status_code=403, detail="Access denied to this residence")
+            conds.append(TaskCategory.residence_id == residence_id)
+        else:
+            # Sin residence_id: mostrar categorías de todas las residencias asignadas
+            conds.append(TaskCategory.residence_id.in_(allowed_residence_ids))
+    elif residence_id:
+        # Superadmin con residence_id específico: filtrar por esa residencia
+        conds.append(TaskCategory.residence_id == residence_id)
 
     q = await db.execute(select(TaskCategory).where(and_(*conds)).order_by(TaskCategory.name))
     return q.scalars().all()
@@ -457,16 +493,32 @@ async def list_templates(
     residence_id: str | None = Query(None, description="Filter by residence ID"),
     category_id: str | None = Query(None),
 ):
-    rid = await _set_residence_context(db, current, residence_id)
     query = select(TaskTemplate).where(TaskTemplate.deleted_at.is_(None))
 
     if current["role"] != "superadmin":
-        if not rid:
-            raise HTTPException(status_code=428, detail="Select a residence (residence_id)")
-        query = query.where(TaskTemplate.residence_id == rid)
-    elif rid:
+        # Gestores y profesionales: mostrar templates de sus residencias asignadas
+        user_residences_result = await db.execute(
+            select(UserResidence.residence_id).where(
+                UserResidence.user_id == current["id"],
+                UserResidence.deleted_at.is_(None)
+            )
+        )
+        allowed_residence_ids = [row[0] for row in user_residences_result.all()]
+
+        if not allowed_residence_ids:
+            raise HTTPException(status_code=403, detail="No residences assigned")
+
+        # Si se proporciona residence_id, verificar que el usuario tenga acceso
+        if residence_id:
+            if residence_id not in allowed_residence_ids:
+                raise HTTPException(status_code=403, detail="Access denied to this residence")
+            query = query.where(TaskTemplate.residence_id == residence_id)
+        else:
+            # Sin residence_id: mostrar templates de todas las residencias asignadas
+            query = query.where(TaskTemplate.residence_id.in_(allowed_residence_ids))
+    elif residence_id:
         # Superadmin con residence_id específico: filtrar por esa residencia
-        query = query.where(TaskTemplate.residence_id == rid)
+        query = query.where(TaskTemplate.residence_id == residence_id)
     if category_id:
         query = query.where(TaskTemplate.task_category_id == category_id)
 
@@ -484,15 +536,32 @@ async def list_templates_simple(
     category_id: str | None = Query(None),
 ):
     """Legacy endpoint: List templates without pagination"""
-    rid = await _set_residence_context(db, current, residence_id)
     conds = [TaskTemplate.deleted_at.is_(None)]
+    
     if current["role"] != "superadmin":
-        if not rid:
-            raise HTTPException(status_code=428, detail="Select a residence (residence_id)")
-        conds.append(TaskTemplate.residence_id == rid)
-    elif rid:
+        # Gestores y profesionales: mostrar templates de sus residencias asignadas
+        user_residences_result = await db.execute(
+            select(UserResidence.residence_id).where(
+                UserResidence.user_id == current["id"],
+                UserResidence.deleted_at.is_(None)
+            )
+        )
+        allowed_residence_ids = [row[0] for row in user_residences_result.all()]
+
+        if not allowed_residence_ids:
+            raise HTTPException(status_code=403, detail="No residences assigned")
+
+        # Si se proporciona residence_id, verificar que el usuario tenga acceso
+        if residence_id:
+            if residence_id not in allowed_residence_ids:
+                raise HTTPException(status_code=403, detail="Access denied to this residence")
+            conds.append(TaskTemplate.residence_id == residence_id)
+        else:
+            # Sin residence_id: mostrar templates de todas las residencias asignadas
+            conds.append(TaskTemplate.residence_id.in_(allowed_residence_ids))
+    elif residence_id:
         # Superadmin con residence_id específico: filtrar por esa residencia
-        conds.append(TaskTemplate.residence_id == rid)
+        conds.append(TaskTemplate.residence_id == residence_id)
     if category_id:
         conds.append(TaskTemplate.task_category_id == category_id)
 

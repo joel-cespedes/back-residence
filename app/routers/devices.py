@@ -231,17 +231,32 @@ async def list_devices(
     residence_id: str | None = Query(None, alias="residence_id"),
 ):
     """List devices with pagination and filters"""
-    await apply_residence_context(db, current, residence_id)
+    query = select(Device).where(Device.deleted_at.is_(None))
 
-    if current["role"] == "superadmin":
+    if current["role"] != "superadmin":
+        # Gestores y profesionales: mostrar dispositivos de sus residencias asignadas
+        user_residences_result = await db.execute(
+            select(UserResidence.residence_id).where(
+                UserResidence.user_id == current["id"],
+                UserResidence.deleted_at.is_(None)
+            )
+        )
+        allowed_residence_ids = [row[0] for row in user_residences_result.all()]
+
+        if not allowed_residence_ids:
+            raise HTTPException(status_code=403, detail="No residences assigned")
+
+        # Si se proporciona residence_id, verificar que el usuario tenga acceso
         if residence_id:
-            query = select(Device).where(Device.residence_id == residence_id, Device.deleted_at.is_(None))
+            if residence_id not in allowed_residence_ids:
+                raise HTTPException(status_code=403, detail="Access denied to this residence")
+            query = query.where(Device.residence_id == residence_id)
         else:
-            query = select(Device).where(Device.deleted_at.is_(None))
-    else:
-        if not residence_id:
-            raise HTTPException(status_code=400, detail="Residence ID is required")
-        query = select(Device).where(Device.residence_id == residence_id, Device.deleted_at.is_(None))
+            # Sin residence_id: mostrar dispositivos de todas las residencias asignadas
+            query = query.where(Device.residence_id.in_(allowed_residence_ids))
+    elif residence_id:
+        # Superadmin con residence_id específico: filtrar por esa residencia
+        query = query.where(Device.residence_id == residence_id)
 
     return await paginate_query_devices(query, db, pagination, filters)
 

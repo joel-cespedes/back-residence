@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import bcrypt
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
-from sqlalchemy import select, func, text
+from sqlalchemy import select, func, text, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import get_db, get_current_user
@@ -106,7 +106,9 @@ async def list_users(
     
     # Apply permission-based filtering
     if current["role"] != "superadmin":
-        # Managers can only see users in their assigned residences
+        # Managers can see:
+        # 1. Managers they created themselves
+        # 2. Professionals from their assigned residences
         accessible_residences = await PermissionService.get_accessible_residence_ids(
             db, current["id"], current["role"]
         )
@@ -123,10 +125,18 @@ async def list_users(
                 has_prev=False
             )
         
-        # Join with UserResidence to filter by accessible residences
-        base_query = base_query.join(UserResidence, UserResidence.user_id == User.id).where(
-            UserResidence.residence_id.in_(accessible_residences)
-        ).distinct()
+        # Filter: managers created by current user OR professionals from accessible residences
+        base_query = base_query.where(
+            or_(
+                and_(User.role == "manager", User.created_by == current["id"]),
+                and_(User.role == "professional", User.id.in_(
+                    select(UserResidence.user_id).where(
+                        UserResidence.residence_id.in_(accessible_residences),
+                        UserResidence.deleted_at.is_(None)
+                    )
+                ))
+            )
+        )
     
     # Apply search filter if provided
     if filters.search:
@@ -159,11 +169,20 @@ async def list_users(
     items = []
     for user in users:
         # Get user's residence assignments with names
-        residence_result = await db.execute(
+        residence_query = (
             select(Residence.id, Residence.name)
             .join(UserResidence, UserResidence.residence_id == Residence.id)
             .where(UserResidence.user_id == user.id, Residence.deleted_at.is_(None))
         )
+        
+        # If current user is not superadmin, filter residences by their accessible residences
+        if current["role"] != "superadmin":
+            accessible_residences = await PermissionService.get_accessible_residence_ids(
+                db, current["id"], current["role"]
+            )
+            residence_query = residence_query.where(Residence.id.in_(accessible_residences))
+        
+        residence_result = await db.execute(residence_query)
         residences = [{"id": row[0], "name": row[1]} for row in residence_result.fetchall()]
         
         # Get creator info
@@ -229,26 +248,46 @@ async def get_user(
     
     # Check permissions
     if current["role"] != "superadmin":
-        # Managers can only see users in their accessible residences
-        user_residences = await db.execute(
-            select(UserResidence.residence_id).where(UserResidence.user_id == user.id)
-        )
-        user_residence_ids = [row[0] for row in user_residences.fetchall()]
-        
-        accessible_residences = await PermissionService.get_accessible_residence_ids(
-            db, current["id"], current["role"]
-        )
-        
-        # Check if there's any overlap
-        if not any(rid in accessible_residences for rid in user_residence_ids):
-            raise HTTPException(status_code=403, detail="Access denied to this user")
+        # Managers can see:
+        # 1. Managers they created themselves
+        # 2. Professionals from their assigned residences
+        if user.role == "manager":
+            # Can only see managers they created
+            if user.created_by != current["id"]:
+                raise HTTPException(status_code=403, detail="Access denied to this user")
+        elif user.role == "professional":
+            # Can see professionals from their assigned residences
+            accessible_residences = await PermissionService.get_accessible_residence_ids(
+                db, current["id"], current["role"]
+            )
+            
+            # Check if this professional is assigned to any of the manager's residences
+            user_residences = await db.execute(
+                select(UserResidence.residence_id).where(
+                    UserResidence.user_id == user.id,
+                    UserResidence.deleted_at.is_(None)
+                )
+            )
+            user_residence_ids = [row[0] for row in user_residences.fetchall()]
+            
+            if not any(rid in accessible_residences for rid in user_residence_ids):
+                raise HTTPException(status_code=403, detail="Access denied to this user")
     
     # Get user's residence assignments with names
-    residence_result = await db.execute(
+    residence_query = (
         select(Residence.id, Residence.name)
         .join(UserResidence, UserResidence.residence_id == Residence.id)
         .where(UserResidence.user_id == user.id, Residence.deleted_at.is_(None))
     )
+    
+    # If current user is not superadmin, filter residences by their accessible residences
+    if current["role"] != "superadmin":
+        accessible_residences = await PermissionService.get_accessible_residence_ids(
+            db, current["id"], current["role"]
+        )
+        residence_query = residence_query.where(Residence.id.in_(accessible_residences))
+    
+    residence_result = await db.execute(residence_query)
     residences = [{"id": row[0], "name": row[1]} for row in residence_result.fetchall()]
     
     # Get creator info
@@ -362,6 +401,32 @@ async def update_user(
         raise HTTPException(status_code=404, detail="User not found")
     
     # Check permissions to manage this user
+    if current["role"] != "superadmin":
+        # Managers can manage:
+        # 1. Managers they created themselves
+        # 2. Professionals from their assigned residences
+        if user.role == "manager":
+            # Can only manage managers they created
+            if user.created_by != current["id"]:
+                raise HTTPException(status_code=403, detail="Access denied to this user")
+        elif user.role == "professional":
+            # Can manage professionals from their assigned residences
+            accessible_residences = await PermissionService.get_accessible_residence_ids(
+                db, current["id"], current["role"]
+            )
+            
+            # Check if this professional is assigned to any of the manager's residences
+            user_residences = await db.execute(
+                select(UserResidence.residence_id).where(
+                    UserResidence.user_id == user.id,
+                    UserResidence.deleted_at.is_(None)
+                )
+            )
+            user_residence_ids = [row[0] for row in user_residences.fetchall()]
+            
+            if not any(rid in accessible_residences for rid in user_residence_ids):
+                raise HTTPException(status_code=403, detail="Access denied to this user")
+    
     if not PermissionService.can_manage_users(current["role"], user.role):
         raise HTTPException(status_code=403, detail="Cannot manage this user type")
     

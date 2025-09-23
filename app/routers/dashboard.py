@@ -549,6 +549,79 @@ async def get_new_resident_stats(db: AsyncSession, residence_id: str) -> NewResi
         monthly_data=monthly_data
     )
 
+async def get_new_resident_stats_aggregated(db: AsyncSession, residence_ids: List[str]) -> NewResidentStats:
+    """Get aggregated new resident statistics for multiple residences"""
+    current_year = datetime.utcnow().year
+    previous_year = current_year - 1
+
+    # Get residents for current year across all residences
+    current_year_result = await db.scalar(
+        select(func.count(Resident.id)).where(
+            Resident.residence_id.in_(residence_ids),
+            Resident.deleted_at.is_(None),
+            func.extract('year', Resident.created_at) == current_year
+        )
+    )
+
+    # Get residents for previous year across all residences
+    previous_year_result = await db.scalar(
+        select(func.count(Resident.id)).where(
+            Resident.residence_id.in_(residence_ids),
+            Resident.deleted_at.is_(None),
+            func.extract('year', Resident.created_at) == previous_year
+        )
+    )
+
+    # Get total residents across all residences
+    total_residents_result = await db.scalar(
+        select(func.count(Resident.id)).where(
+            Resident.residence_id.in_(residence_ids),
+            Resident.deleted_at.is_(None)
+        )
+    )
+
+    # Calculate growth percentage
+    current_year_residents = current_year_result or 0
+    previous_year_residents = previous_year_result or 0
+    growth_percentage = 0.0
+
+    if previous_year_residents > 0:
+        growth_percentage = ((current_year_residents - previous_year_residents) / previous_year_residents) * 100
+    elif current_year_residents > 0:
+        growth_percentage = 100.0
+
+    # Get monthly data for current year across all residences
+    monthly_data = []
+    for month in range(1, 13):
+        month_start = datetime(current_year, month, 1)
+        if month == 12:
+            month_end = datetime(current_year + 1, 1, 1)
+        else:
+            month_end = datetime(current_year, month + 1, 1)
+
+        month_residents = await db.scalar(
+            select(func.count(Resident.id)).where(
+                Resident.residence_id.in_(residence_ids),
+                Resident.deleted_at.is_(None),
+                Resident.created_at >= month_start,
+                Resident.created_at < month_end
+            )
+        )
+
+        monthly_data.append(MonthlyResidentData(
+            month=datetime(current_year, month, 1).strftime('%b'),
+            value=month_residents or 0
+        ))
+
+    return NewResidentStats(
+        current_year=current_year,
+        current_year_residents=current_year_residents,
+        previous_year_residents=previous_year_residents,
+        growth_percentage=round(growth_percentage, 1),
+        total_residents=total_residents_result or 0,
+        monthly_data=monthly_data
+    )
+
 async def get_yearly_comparison(db: AsyncSession, residence_id: str) -> List[YearComparison]:
     """Get yearly comparison data"""
     current_year = datetime.utcnow().year
@@ -819,7 +892,7 @@ async def get_navigation_counts(
         rooms_query = select(func.count(Room.id)).where(Room.deleted_at.is_(None))
         beds_query = select(func.count(Bed.id)).where(Bed.deleted_at.is_(None))
         categories_query = select(func.count(TaskCategory.id)).where(TaskCategory.deleted_at.is_(None))
-        tasks_query = select(func.count(TaskApplication.id)).where(TaskApplication.deleted_at.is_(None))
+        tasks_query = select(func.count(TaskTemplate.id)).where(TaskTemplate.deleted_at.is_(None))
         devices_query = select(func.count(Device.id)).where(Device.deleted_at.is_(None))
         measurements_query = select(func.count(Measurement.id)).where(Measurement.deleted_at.is_(None))
 
@@ -895,9 +968,9 @@ async def get_navigation_counts(
             TaskCategory.residence_id.in_(residence_ids),
             TaskCategory.deleted_at.is_(None)
         )
-        tasks_query = select(func.count(TaskApplication.id)).where(
-            TaskApplication.residence_id.in_(residence_ids),
-            TaskApplication.deleted_at.is_(None)
+        tasks_query = select(func.count(TaskTemplate.id)).where(
+            TaskTemplate.residence_id.in_(residence_ids),
+            TaskTemplate.deleted_at.is_(None)
         )
         devices_query = select(func.count(Device.id)).where(
             Device.residence_id.in_(residence_ids),
@@ -1028,10 +1101,32 @@ async def get_new_residents_stats(
     residence_id: str | None = Query(None, description="Filter by residence ID"),
 ):
     """Get new resident statistics for current year"""
-    await apply_residence_context(db, current, residence_id)
-    if not residence_id:
-        raise HTTPException(status_code=400, detail="Residence ID is required")
-    return await get_new_resident_stats(db, residence_id)
+    if current["role"] != "superadmin":
+        # Gestores y profesionales: mostrar estadísticas de sus residencias asignadas
+        user_residences_result = await db.execute(
+            select(UserResidence.residence_id).where(
+                UserResidence.user_id == current["id"],
+                UserResidence.deleted_at.is_(None)
+            )
+        )
+        allowed_residence_ids = [row[0] for row in user_residences_result.all()]
+
+        if not allowed_residence_ids:
+            raise HTTPException(status_code=403, detail="No residences assigned")
+
+        # Si se proporciona residence_id, verificar que el usuario tenga acceso
+        if residence_id:
+            if residence_id not in allowed_residence_ids:
+                raise HTTPException(status_code=403, detail="Access denied to this residence")
+            return await get_new_resident_stats(db, residence_id)
+        else:
+            # Sin residence_id: mostrar estadísticas agregadas de todas las residencias asignadas
+            return await get_new_resident_stats_aggregated(db, allowed_residence_ids)
+    else:
+        # Superadmin: requiere residence_id específico
+        if not residence_id:
+            raise HTTPException(status_code=400, detail="Residence ID is required")
+        return await get_new_resident_stats(db, residence_id)
 
 @router.get("/task-categories", response_model=list[TaskCategoryWithCount])
 async def get_task_categories_with_counts(
