@@ -7,10 +7,18 @@ from app.config import settings
 
 # Crea el engine async (Postgres). La URL viene de .env (DATABASE_URL)
 # Ejemplo válido:
-#   postgresql+asyncpg://user:pass@localhost:5432/residences   (Python 3.12)
-# Si usas psycopg async, ajusta a: postgresql+psycopg://...
+#   postgresql+asyncpg://user:pass@localhost:5432/residences   (asyncpg)
+#   postgresql+psycopg://user:pass@localhost:5432/residences   (psycopg2)
+# Si la URL no tiene prefijo, intentamos usar asyncpg por defecto
+database_url = settings.database_url
+if not database_url.startswith(('postgresql+asyncpg://', 'postgresql+psycopg://')):
+    if database_url.startswith('postgresql://'):
+        database_url = database_url.replace('postgresql://', 'postgresql+asyncpg://', 1)
+    elif database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql+asyncpg://', 1)
+
 engine = create_async_engine(
-    settings.database_url,
+    database_url,
     future=True,
     pool_pre_ping=True,
 )
