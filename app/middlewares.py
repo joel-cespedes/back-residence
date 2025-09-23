@@ -5,13 +5,13 @@ import time
 import logging
 
 def setup_middlewares(app: FastAPI):
-    origins = [o.strip() for o in settings.cors_origins.split(",")]
+    # CORS completamente liberado para desarrollo
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=origins if origins != ["*"] else ["*"],
+        allow_origins=["*"],  # Permite cualquier origen
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["*"],  # Permite cualquier método HTTP
+        allow_headers=["*"],   # Permite cualquier header
     )
 
     logger = logging.getLogger("uvicorn.error")
