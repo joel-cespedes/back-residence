@@ -1123,10 +1123,16 @@ async def get_new_residents_stats(
             # Sin residence_id: mostrar estadísticas agregadas de todas las residencias asignadas
             return await get_new_resident_stats_aggregated(db, allowed_residence_ids)
     else:
-        # Superadmin: requiere residence_id específico
-        if not residence_id:
-            raise HTTPException(status_code=400, detail="Residence ID is required")
-        return await get_new_resident_stats(db, residence_id)
+        # Superadmin: puede ver todas las residencias o filtrar por una específica
+        if residence_id:
+            return await get_new_resident_stats(db, residence_id)
+        else:
+            # Sin residence_id: mostrar estadísticas agregadas de todas las residencias
+            all_residences_result = await db.execute(
+                select(Residence.id).where(Residence.deleted_at.is_(None))
+            )
+            all_residence_ids = [row[0] for row in all_residences_result.all()]
+            return await get_new_resident_stats_aggregated(db, all_residence_ids)
 
 @router.get("/task-categories", response_model=list[TaskCategoryWithCount])
 async def get_task_categories_with_counts(
