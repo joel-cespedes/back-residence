@@ -1,4 +1,3 @@
-# app/deps.py
 from __future__ import annotations
 
 from fastapi import Depends, HTTPException, status, Header, Query
@@ -16,7 +15,6 @@ async def get_current_user(creds: HTTPAuthorizationCredentials = Depends(bearer)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
     try:
         payload = decode_token(creds.credentials)
-        # payload contiene "sub", "role" y "alias"
         result = {"id": payload["sub"], "role": payload["role"]}
         if "alias" in payload:
             result["alias"] = payload["alias"]
@@ -36,6 +34,7 @@ async def get_db(current=Depends(get_current_user)) -> AsyncSession:
 async def get_db_with_residence(
     current = Depends(get_current_user),
     residence_id_query: str | None = Query(None, alias="residenceId"),
+    residence_id_header: str | None = Header(None, alias="residence-id"),
 ) -> AsyncSession:
     """
     Igual que get_db pero OBLIGA a enviar una residencia (header o query), salvo superadmin.
@@ -49,10 +48,8 @@ async def get_db_with_residence(
         )
 
     async with AsyncSessionLocal() as session:
-        # Fijar usuario para RLS
         await session.execute(text("SELECT set_config('app.user_id', :uid, true)"), {"uid": current["id"]})
 
-        # Validar y fijar residencia si viene
         if residence_id:
             ok = await session.execute(
                 select(UserResidence).where(

@@ -247,10 +247,13 @@ class DatabaseSeeder:
         await self.session.flush()
         return all_floors, all_rooms, all_beds
 
-    async def create_residents(self, count: int, beds: List[Bed], residences: List[Residence]) -> List[Resident]:
+    async def create_residents(self, count: int, beds: List[Bed], rooms: List[Room], residences: List[Residence]) -> List[Resident]:
         """Crea residentes asignados a camas"""
         print(f"👥 Creando {count} residentes...")
         residents = []
+
+        # Crear un mapa de room_id -> floor_id para consulta rápida
+        room_to_floor_map = {room.id: room.floor_id for room in rooms}
 
         for i in range(count):
             resident_id = str(uuid.uuid4())
@@ -269,6 +272,10 @@ class DatabaseSeeder:
             birth_day = random.randint(1, 28)
             birth_date = date(birth_year, birth_month, birth_day)
 
+            # Obtener room_id y floor_id de manera eficiente
+            room_id = bed.room_id if bed else None
+            floor_id = room_to_floor_map.get(room_id) if room_id else None
+
             resident = Resident(
                 id=resident_id,
                 residence_id=residence.id,
@@ -277,6 +284,8 @@ class DatabaseSeeder:
                 sex=random.choice(["M", "F"]),
                 status=random.choice(["active", "active", "active", "discharged"]),  # 75% activos
                 bed_id=bed.id if bed else None,
+                room_id=room_id,
+                floor_id=floor_id,
                 comments=f"Residente de prueba - {full_name}"
             )
 
@@ -437,7 +446,7 @@ class DatabaseSeeder:
         floors, rooms, beds = await self.create_structure(residences)
         
         # 5. Algunos residentes
-        residents = await self.create_residents(10, beds, residences)
+        residents = await self.create_residents(10, beds, rooms, residences)
         
         # 6. Sistema de tareas básico
         categories, templates = await self.create_task_system(residences, superadmin.id)
@@ -483,7 +492,7 @@ class DatabaseSeeder:
         floors, rooms, beds = await self.create_structure(residences)
         
         # 4. Residentes
-        residents = await self.create_residents(60, beds, residences)
+        residents = await self.create_residents(60, beds, rooms, residences)
         
         # 5. Sistema de tareas
         categories, templates = await self.create_task_system(residences, superadmin.id)
@@ -540,7 +549,7 @@ class DatabaseSeeder:
         floors, rooms, beds = await self.create_structure(residences)
         
         # 4. Residentes
-        residents = await self.create_residents(200, beds, residences)
+        residents = await self.create_residents(200, beds, rooms, residences)
         
         # 5. Sistema de tareas
         categories, templates = await self.create_task_system(residences, superadmin.id)

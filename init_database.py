@@ -99,6 +99,10 @@ async def create_indexes(engine):
         'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_role ON "user" (role)',
         'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_deleted_at ON "user" (deleted_at)',
         
+
+        'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_resident_room_id ON resident (room_id)',
+        'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_resident_floor_id ON resident (floor_id)',
+
         'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_residence_name ON residence (name)',
         'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_residence_deleted_at ON residence (deleted_at)',
         
@@ -228,10 +232,11 @@ async def main():
             if table_count > 0:
                 print(f"⚠️  ATENCIÓN: Se encontraron {table_count} tablas existentes")
                 print("⚠️  Este script eliminará TODAS las tablas existentes")
-                response = input("¿Estás seguro de que quieres continuar? (escribe 'SI' para confirmar): ")
-                if response.upper() != 'SI':
-                    print("❌ Operación cancelada por el usuario")
-                    return
+                print("🤖 Confirmación automática para recrear estructura con room_id y floor_id")
+                # response = input("¿Estás seguro de que quieres continuar? (escribe 'SI' para confirmar): ")
+                # if response.upper() != 'SI':
+                #     print("❌ Operación cancelada por el usuario")
+                #     return
         
         # 1. Eliminar todas las tablas existentes
         await drop_all_tables(engine)

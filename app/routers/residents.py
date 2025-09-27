@@ -165,13 +165,21 @@ async def create_resident(
         if not data.residence_id:
             raise HTTPException(status_code=400, detail="Residence ID is required")
 
+        # Validar cama y obtener room_id y floor_id
+        room_id = None
+        floor_id = None
         if data.bed_id:
             bed_result = await db.execute(
-                select(Bed).where(Bed.id == data.bed_id, Bed.deleted_at.is_(None))
+                select(Bed, Room.floor_id).join(Room, Bed.room_id == Room.id)
+                .where(Bed.id == data.bed_id, Bed.deleted_at.is_(None))
             )
-            bed = bed_result.scalar_one_or_none()
-            if not bed:
+            result_row = bed_result.first()
+            if not result_row:
                 raise HTTPException(status_code=404, detail="Bed not found")
+                
+            bed, floor_id = result_row
+            room_id = bed.room_id
+            
             if bed.residence_id != data.residence_id:
                 raise HTTPException(status_code=400, detail="Bed must belong to the specified residence")
 
@@ -186,6 +194,8 @@ async def create_resident(
         resident = Resident(
             id=new_uuid(),
             residence_id=data.residence_id,
+            room_id=room_id,    # Asignar room_id
+            floor_id=floor_id,  # Asignar floor_id
             **resident_data
         )
 
@@ -214,7 +224,7 @@ async def list_residents(
     logger = logging.getLogger(__name__)
 
     try:
-        # Build base query with optimized joins
+        # Build base query with SUPER optimized joins - relaciones directas
         base_query = select(
             Resident,
             Bed.name.label("bed_name"),
@@ -223,8 +233,8 @@ async def list_residents(
             Residence.name.label("residence_name")
         ).join(Residence, Resident.residence_id == Residence.id
         ).join(Bed, Resident.bed_id == Bed.id, isouter=True
-        ).join(Room, Bed.room_id == Room.id, isouter=True
-        ).join(Floor, Room.floor_id == Floor.id, isouter=True
+        ).join(Room, Resident.room_id == Room.id, isouter=True  # ← DIRECTO desde resident
+        ).join(Floor, Resident.floor_id == Floor.id, isouter=True  # ← DIRECTO desde resident
         ).where(Resident.deleted_at.is_(None))
 
         # Apply filtering based on user role and assignments
@@ -261,18 +271,18 @@ async def get_resident(
         if result.scalar_one_or_none() is None:
             raise HTTPException(status_code=403, detail="Access denied to this resident")
 
-    # Get resident with relationship data
+    # Get resident with relationship data - OPTIMIZADO con relaciones directas
     result = await db.execute(
         select(
             Resident,
             Bed.name.label("bed_name"),
-            Room.name.label("room_name"),
+            Room.name.label("room_name"), 
             Floor.name.label("floor_name"),
             Residence.name.label("residence_name")
-        ).join(Bed, Resident.bed_id == Bed.id, isouter=True
-        ).join(Room, Bed.room_id == Room.id, isouter=True
-        ).join(Floor, Room.floor_id == Floor.id, isouter=True
         ).join(Residence, Resident.residence_id == Residence.id
+        ).join(Bed, Resident.bed_id == Bed.id, isouter=True
+        ).join(Room, Resident.room_id == Room.id, isouter=True  # ← DIRECTO, no a través de bed
+        ).join(Floor, Resident.floor_id == Floor.id, isouter=True  # ← DIRECTO, no a través de room
         ).where(Resident.id == id)
     )
 
@@ -284,7 +294,7 @@ async def get_resident(
     resident_data = row[0]
     response_dict = {}
 
-    # Add all Resident columns
+    # Add all Resident columns (ahora incluye room_id y floor_id)
     for column in resident_data.__table__.columns.keys():
         response_dict[column] = getattr(resident_data, column)
 
@@ -318,13 +328,17 @@ async def update_resident(
         db, current["id"], resident.residence_id, current["role"]
     )
 
+    # Si se está actualizando bed_id, también actualizar room_id y floor_id
     if data.bed_id:
         bed_result = await db.execute(
-            select(Bed).where(Bed.id == data.bed_id, Bed.deleted_at.is_(None))
+            select(Bed, Room.floor_id).join(Room, Bed.room_id == Room.id)
+            .where(Bed.id == data.bed_id, Bed.deleted_at.is_(None))
         )
-        bed = bed_result.scalar_one_or_none()
-        if not bed:
+        result_row = bed_result.first()
+        if not result_row:
             raise HTTPException(status_code=404, detail="Bed not found")
+            
+        bed, floor_id = result_row
 
         # Log para depuración
         print(f"PUT - Bed residence_id: {bed.residence_id}")
@@ -349,9 +363,36 @@ async def update_resident(
 
     await db.execute(text("SELECT set_config('app.user_id', :uid, true)"), {"uid": current["id"]})
 
+    # Actualizar campos normales (excluyendo bed_id, room_id, floor_id que se manejan especialmente)
     update_data = data.dict(exclude_unset=True)
     for field, value in update_data.items():
-        setattr(resident, field, value)
+        if field not in ['bed_id', 'room_id', 'floor_id']:  # Estos se manejan por separado
+            setattr(resident, field, value)
+    
+    # Manejo especial de bed_id, room_id y floor_id
+    if data.bed_id:
+        # Si se asigna una cama, actualizar todos los niveles jerárquicos
+        resident.bed_id = data.bed_id
+        resident.room_id = bed.room_id
+        resident.floor_id = floor_id
+    elif 'bed_id' in update_data and data.bed_id is None:
+        # Si explícitamente se quita la cama, solo quitarla
+        resident.bed_id = None
+        # Mantener room_id y floor_id si se proporcionaron explícitamente
+        if 'room_id' in update_data:
+            resident.room_id = data.room_id
+        else:
+            resident.room_id = None
+        if 'floor_id' in update_data:
+            resident.floor_id = data.floor_id
+        else:
+            resident.floor_id = None
+    else:
+        # Si no se toca bed_id, actualizar room_id y floor_id independientemente si se proporcionaron
+        if 'room_id' in update_data:
+            resident.room_id = data.room_id
+        if 'floor_id' in update_data:
+            resident.floor_id = data.floor_id
 
     await db.commit()
     await db.refresh(resident)
@@ -404,23 +445,37 @@ async def change_bed(
             raise HTTPException(status_code=403, detail="Access denied to this resident")
 
     if payload.new_bed_id:
+        # Obtener la cama con su información de room y floor
         bed_result = await db.execute(
-            select(Bed).where(Bed.id == payload.new_bed_id, Bed.deleted_at.is_(None))
+            select(Bed, Room.floor_id).join(Room, Bed.room_id == Room.id)
+            .where(Bed.id == payload.new_bed_id, Bed.deleted_at.is_(None))
         )
-        bed = bed_result.scalar_one_or_none()
-        if not bed:
+        result_row = bed_result.first()
+        if not result_row:
             raise HTTPException(status_code=404, detail="Bed not found")
+        
+        bed, floor_id = result_row
         if bed.residence_id != resident.residence_id:
             raise HTTPException(status_code=400, detail="Bed must belong to the same residence")
 
     await db.execute(text("SELECT set_config('app.user_id', :uid, true)"), {"uid": current["id"]})
 
-    resident.bed_id = payload.new_bed_id
-    if payload.changed_at:
-        resident.bed_changed_at = payload.changed_at
+    # Actualizar bed_id, room_id y floor_id de manera consistente
+    if payload.new_bed_id:
+        resident.bed_id = payload.new_bed_id
+        resident.room_id = bed.room_id  # Actualizar room_id
+        resident.floor_id = floor_id    # Actualizar floor_id
     else:
-        from datetime import datetime
-        resident.bed_changed_at = datetime.utcnow()
+        # Si se quita la asignación de cama
+        resident.bed_id = None
+        resident.room_id = None
+        resident.floor_id = None
+        
+    if payload.changed_at:
+        resident.status_changed_at = payload.changed_at  # Corregir nombre del campo
+    else:
+        from datetime import datetime, timezone
+        resident.status_changed_at = datetime.now(timezone.utc)
 
     await db.commit()
     await db.refresh(resident)
