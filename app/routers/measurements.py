@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.deps import get_db, get_current_user
 from app.security import new_uuid
 from app.models import (
-    Measurement, Resident, Device, UserResidence
+    Measurement, Resident, Device, UserResidence, Bed
 )
 from app.schemas import (
     MeasurementCreate, MeasurementOut, MeasurementUpdate,
@@ -126,7 +126,7 @@ async def paginate_query_measurements(
     db: AsyncSession,
     pagination: PaginationParams,
     filter_params: FilterParams = None
-) -> PaginatedResponse:
+) -> PaginatedResponse[MeasurementOut]:
     """Apply pagination and filters to a measurements query"""
 
     if filter_params:
@@ -158,7 +158,33 @@ async def paginate_query_measurements(
     query = query.offset(offset).limit(pagination.size)
 
     result = await db.execute(query)
-    items = [dict(row._mapping) for row in result.scalars().all()]
+    
+    # Handle JOIN query - Measurement + resident_full_name + bed_name
+    items = []
+    for row in result.all():
+        measurement, resident_full_name, bed_name = row
+        item_dict = {
+            "id": measurement.id,
+            "residence_id": measurement.residence_id,
+            "resident_id": measurement.resident_id,
+            "resident_full_name": resident_full_name,
+            "bed_name": bed_name,
+            "recorded_by": measurement.recorded_by,
+            "source": measurement.source,
+            "device_id": measurement.device_id,
+            "type": measurement.type,
+            "systolic": measurement.systolic,
+            "diastolic": measurement.diastolic,
+            "pulse_bpm": measurement.pulse_bpm,
+            "spo2": measurement.spo2,
+            "weight_kg": measurement.weight_kg,
+            "temperature_c": measurement.temperature_c,
+            "taken_at": measurement.taken_at,
+            "created_at": measurement.created_at,
+            "updated_at": measurement.updated_at,
+            "deleted_at": measurement.deleted_at
+        }
+        items.append(item_dict)
 
     pages = (total + pagination.size - 1) // pagination.size
     has_next = pagination.page < pages
@@ -252,7 +278,20 @@ async def list_measurements(
     """
     rid = await apply_residence_context_or_infer(db, current, residence_id, resident_id=resident_id)
 
-    query = select(Measurement).where(Measurement.residence_id == rid, Measurement.deleted_at.is_(None))
+    # Query with JOINs to get additional information
+    query = select(
+        Measurement,
+        Resident.full_name.label("resident_full_name"),
+        Bed.name.label("bed_name")
+    ).join(
+        Resident, Measurement.resident_id == Resident.id
+    ).join(
+        Bed, Resident.bed_id == Bed.id, isouter=True
+    ).where(
+        Measurement.residence_id == rid, 
+        Measurement.deleted_at.is_(None),
+        Resident.deleted_at.is_(None)
+    )
 
     if resident_id:
         query = query.where(Measurement.resident_id == resident_id)
@@ -436,12 +475,15 @@ async def get_measurements_by_resident(
     if not resident_check:
         raise HTTPException(status_code=404, detail="Resident not found or not accessible")
     
-    # Build base query with resident name
+    # Build base query with resident name and bed name
     query = select(
         Measurement,
-        Resident.full_name.label("resident_full_name")
+        Resident.full_name.label("resident_full_name"),
+        Bed.name.label("bed_name")
     ).join(
         Resident, Measurement.resident_id == Resident.id
+    ).join(
+        Bed, Resident.bed_id == Bed.id, isouter=True  # LEFT JOIN porque bed_id puede ser NULL
     ).where(
         Measurement.resident_id == resident_id,
         Measurement.residence_id == rid,
@@ -479,14 +521,15 @@ async def get_measurements_by_resident(
     
     items = []
     for row in result.all():
-        measurement, resident_full_name = row
+        measurement, resident_full_name, bed_name = row
         
-        # Build item dictionary with resident name
+        # Build item dictionary with resident name and bed name
         item_dict = {
             "id": measurement.id,
             "residence_id": measurement.residence_id,
             "resident_id": measurement.resident_id,
             "resident_full_name": resident_full_name,
+            "bed_name": bed_name,
             "recorded_by": measurement.recorded_by,
             "source": measurement.source,
             "device_id": measurement.device_id,

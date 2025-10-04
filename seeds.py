@@ -403,6 +403,157 @@ class DatabaseSeeder:
         await self.session.flush()
         return tags
 
+    async def create_measurements(self, residents: List[Resident], devices: List[Device], users: List[User], days: int = 7):
+        """Crea mediciones médicas realistas para los últimos N días"""
+        print(f"📊 Creando mediciones para los últimos {days} días...")
+        
+        measurements = []
+        now = datetime.now(timezone.utc)
+        
+        # Mapeo de tipos de medición a tipos de dispositivos
+        type_to_device = {
+            "bp": "blood_pressure",
+            "spo2": "pulse_oximeter", 
+            "weight": "scale",
+            "temperature": "thermometer"
+        }
+        
+        # Rangos realistas para cada tipo de medición
+        measurement_configs = {
+            "bp": {
+                "systolic_range": (90, 180),
+                "diastolic_range": (60, 110),
+                "pulse_range": (50, 120)
+            },
+            "spo2": {
+                "spo2_range": (88, 100),
+                "pulse_range": (50, 120)
+            },
+            "weight": {
+                "weight_range": (40.0, 120.0)
+            },
+            "temperature": {
+                "temp_range": (35, 40)
+            }
+        }
+        
+        for resident in residents:
+            if resident.status != "active":
+                continue  # Solo crear mediciones para residentes activos
+                
+            # Obtener dispositivos de la misma residencia por tipo
+            residence_devices_by_type = {}
+            for device in devices:
+                if device.residence_id == resident.residence_id:
+                    if device.type not in residence_devices_by_type:
+                        residence_devices_by_type[device.type] = []
+                    residence_devices_by_type[device.type].append(device)
+            
+            # Obtener usuarios profesionales de la misma residencia
+            residence_users = [u for u in users if u.role in ["manager", "professional"]]
+            
+            if not residence_users:
+                continue
+                
+            # Crear mediciones para cada día
+            for day_offset in range(days):
+                measurement_date = now - timedelta(days=day_offset)
+                
+                # 1-3 mediciones por día, distribuidas en horarios típicos
+                measurement_times = []
+                num_measurements = random.randint(1, 3)
+                
+                if num_measurements == 1:
+                    # Una medición: horario aleatorio
+                    measurement_times = [random.randint(8, 20)]
+                elif num_measurements == 2:
+                    # Dos mediciones: mañana y tarde/noche
+                    measurement_times = [random.randint(7, 11), random.randint(16, 22)]
+                else:
+                    # Tres mediciones: mañana, tarde, noche
+                    measurement_times = [random.randint(7, 10), random.randint(12, 16), random.randint(18, 22)]
+                
+                for hour in measurement_times:
+                    minute = random.randint(0, 59)
+                    taken_at = measurement_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
+                    
+                    # Seleccionar tipo de medición con distribución realista
+                    # BP y temperatura son más frecuentes
+                    measurement_type = random.choices(
+                        ["bp", "temperature", "spo2", "weight"],
+                        weights=[40, 30, 20, 10]  # BP más frecuente, peso menos frecuente
+                    )[0]
+                    
+                    # OBLIGATORIO: Encontrar dispositivo compatible
+                    device_type_needed = type_to_device[measurement_type]
+                    compatible_devices = residence_devices_by_type.get(device_type_needed, [])
+                    
+                    if not compatible_devices:
+                        # Si no hay dispositivo del tipo necesario, saltar esta medición
+                        continue
+                    
+                    device = random.choice(compatible_devices)
+                    
+                    # Fuente siempre "device" ya que tenemos dispositivo
+                    source = "device"
+                    
+                    # Generar valores realistas COMPLETOS según el tipo
+                    config = measurement_configs[measurement_type]
+                    
+                    systolic = diastolic = pulse_bpm = spo2 = weight_kg = temperature_c = None
+                    
+                    if measurement_type == "bp":
+                        # PRESIÓN ARTERIAL: systolic + diastolic OBLIGATORIOS, pulse opcional
+                        systolic = random.randint(*config["systolic_range"])
+                        diastolic = random.randint(*config["diastolic_range"])
+                        # Asegurar que systolic > diastolic
+                        if systolic <= diastolic:
+                            systolic = diastolic + random.randint(20, 40)
+                        # Pulse opcional pero frecuente (80% de las veces)
+                        if random.random() < 0.8:
+                            pulse_bpm = random.randint(*config["pulse_range"])
+                            
+                    elif measurement_type == "spo2":
+                        # SATURACIÓN: spo2 OBLIGATORIO, pulse opcional
+                        spo2 = random.randint(*config["spo2_range"])
+                        # Pulse opcional pero frecuente (70% de las veces)
+                        if random.random() < 0.7:
+                            pulse_bpm = random.randint(*config["pulse_range"])
+                            
+                    elif measurement_type == "weight":
+                        # PESO: weight_kg OBLIGATORIO
+                        weight_kg = round(random.uniform(*config["weight_range"]), 1)
+                        
+                    elif measurement_type == "temperature":
+                        # TEMPERATURA: temperature_c OBLIGATORIO
+                        temperature_c = random.randint(*config["temp_range"])
+                    
+                    # Crear la medición con TODOS los campos necesarios
+                    measurement = Measurement(
+                        id=str(uuid.uuid4()),
+                        residence_id=resident.residence_id,
+                        resident_id=resident.id,
+                        recorded_by=random.choice(residence_users).id,
+                        source=source,
+                        device_id=device.id,  # NUNCA NULL
+                        type=measurement_type,
+                        taken_at=taken_at,
+                        # Valores específicos por tipo
+                        systolic=systolic,
+                        diastolic=diastolic,
+                        pulse_bpm=pulse_bpm,
+                        spo2=spo2,
+                        weight_kg=weight_kg,
+                        temperature_c=temperature_c
+                    )
+                    
+                    self.session.add(measurement)
+                    measurements.append(measurement)
+        
+        await self.session.flush()
+        print(f"✅ Creadas {len(measurements)} mediciones")
+        return measurements
+
     async def assign_users_to_residences(self, users: List[User], residences: List[Residence], superadmin_id: str = None):
         """Asigna usuarios a residencias"""
         print("🔗 Asignando usuarios a residencias...")
@@ -506,8 +657,11 @@ class DatabaseSeeder:
         # 8. Etiquetas
         tags = await self.create_tags_and_assignments(residents, all_users)
         
-        # 8. Asignaciones
+        # 9. Asignaciones
         await self.assign_users_to_residences(managers + professionals, residences, superadmin.id)
+        
+        # 10. Mediciones de los últimos 7 días
+        measurements = await self.create_measurements(residents, devices, all_users, days=7)
         
         await self.session.commit()
         print("✅ Datos de desarrollo creados")
@@ -563,8 +717,11 @@ class DatabaseSeeder:
         # 8. Etiquetas
         tags = await self.create_tags_and_assignments(residents, all_users)
         
-        # 8. Asignaciones
+        # 9. Asignaciones
         await self.assign_users_to_residences(managers + professionals, residences, superadmin.id)
+        
+        # 10. Mediciones de los últimos 7 días
+        measurements = await self.create_measurements(residents, devices, all_users, days=7)
         
         await self.session.commit()
         print("✅ Datos completos creados")
@@ -585,6 +742,7 @@ class DatabaseSeeder:
             ('Categorías de tareas', 'SELECT COUNT(*) FROM task_category'),
             ('Plantillas de tareas', 'SELECT COUNT(*) FROM task_template'),
             ('Dispositivos', 'SELECT COUNT(*) FROM device'),
+            ('Mediciones', 'SELECT COUNT(*) FROM measurement'),
             ('Etiquetas', 'SELECT COUNT(*) FROM tag'),
         ]
         
