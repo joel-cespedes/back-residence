@@ -253,7 +253,7 @@ async def list_residents(
         logger.error(f"Params: floor_id={floor_id}, room_id={room_id}, bed_id={bed_id}, residence_id={residence_id_param}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-@router.get("/{id}")
+@router.get("/{id}", response_model=dict)
 async def get_resident(
     id: str,
     db: AsyncSession = Depends(get_db),

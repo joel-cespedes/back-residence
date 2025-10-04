@@ -300,7 +300,7 @@ async def list_floors(
 
     return await paginate_floors_query(query, db, pagination)
 
-@router.get("/floors/{residence_id}/simple")
+@router.get("/floors/{residence_id}/simple", response_model=list[dict])
 async def floors_simple(residence_id: str, db: AsyncSession = Depends(get_db)):
     """Get simple list of floors for a residence (legacy endpoint)"""
     r = await db.execute(
@@ -594,7 +594,7 @@ async def list_rooms(
 
     return await paginate_query_rooms(query, db, pagination, filters)
 
-@router.get("/rooms/{floor_id}/simple")
+@router.get("/rooms/{floor_id}/simple", response_model=list[dict])
 async def rooms_simple(floor_id: str, db: AsyncSession = Depends(get_db)):
     """Get simple list of rooms for a floor (legacy endpoint)"""
 
@@ -884,7 +884,7 @@ async def list_beds(
         has_prev=has_prev
     )
 
-@router.get("/beds/{room_id}/simple")
+@router.get("/beds/{room_id}/simple", response_model=list[dict])
 async def beds_simple(room_id: str, db: AsyncSession = Depends(get_db)):
     """Get simple list of beds for a room (legacy endpoint)"""
     r = await db.execute(
@@ -930,7 +930,7 @@ async def get_bed(
 
     return bed
 
-@router.get("/beds/{id}/details")
+@router.get("/beds/{id}/details", response_model=dict)
 async def bed_details(
     id: str,
     db: AsyncSession = Depends(get_db),

@@ -399,7 +399,7 @@ async def get_residence_users(
         for user in users
     ]
 
-@router.post("/{id}/users/{user_id}", status_code=201)
+@router.post("/{id}/users/{user_id}", response_model=dict, status_code=201)
 async def assign_user_to_residence(
     id: str,
     user_id: str,

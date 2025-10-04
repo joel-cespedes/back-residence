@@ -258,7 +258,7 @@ async def delete_tag(
 
 # -------------------- Assignment Endpoints --------------------
 
-@router.post("/{tag_id}/residents/{resident_id}", status_code=201)
+@router.post("/{tag_id}/residents/{resident_id}", response_model=dict, status_code=201)
 async def assign_tag_to_resident(
     tag_id: str,
     resident_id: str,
