@@ -336,37 +336,49 @@ class DatabaseSeeder:
         await self.session.flush()
         return all_categories, all_templates
 
-    async def create_devices(self, count: int, residences: List[Residence], users: List[User]) -> List[Device]:
-        """Crea dispositivos médicos"""
-        print(f"📱 Creando {count} dispositivos...")
+    async def create_devices(self, residences: List[Residence], users: List[User]) -> List[Device]:
+        """Crea dispositivos médicos - GARANTIZA al menos 4 dispositivos de cada tipo por residencia"""
+        print(f"📱 Creando dispositivos médicos completos...")
         devices = []
+        device_counter = 0
 
-        for i in range(count):
-            residence = random.choice(residences)
-            device_type = random.choice(TIPOS_DISPOSITIVOS)
-            device_names = NOMBRES_DISPOSITIVOS[device_type]
-            device_name = random.choice(device_names)
-
-            # MAC única
-            mac = f"00:1B:44:11:{(i//256):02X}:{(i%256):02X}"
-
-            # Asignar un usuario creador aleatorio
-            creator = random.choice(users)
-
-            device = Device(
-                id=str(uuid.uuid4()),
-                residence_id=residence.id,
-                type=device_type,
-                name=f"{device_name} #{i+1}",
-                mac=mac,
-                battery_percent=random.randint(20, 100),
-                created_by=creator.id
-            )
-
-            self.session.add(device)
-            devices.append(device)
+        for residence in residences:
+            print(f"  🏠 Residencia {residence.name}:")
+            
+            # Para cada tipo de dispositivo, crear al menos 4 dispositivos
+            for device_type in TIPOS_DISPOSITIVOS:
+                device_names = NOMBRES_DISPOSITIVOS[device_type]
+                
+                # Crear entre 4-6 dispositivos de cada tipo por residencia
+                num_devices_this_type = random.randint(4, 6)
+                
+                for i in range(num_devices_this_type):
+                    device_counter += 1
+                    device_name = random.choice(device_names)
+                    
+                    # MAC única
+                    mac = f"00:1B:44:11:{(device_counter//256):02X}:{(device_counter%256):02X}"
+                    
+                    # Asignar un usuario creador aleatorio
+                    creator = random.choice(users)
+                    
+                    device = Device(
+                        id=str(uuid.uuid4()),
+                        residence_id=residence.id,
+                        type=device_type,
+                        name=f"{device_name} #{device_counter}",
+                        mac=mac,
+                        battery_percent=random.randint(20, 100),
+                        created_by=creator.id
+                    )
+                    
+                    self.session.add(device)
+                    devices.append(device)
+                
+                print(f"    ✅ {device_type}: {num_devices_this_type} dispositivos")
 
         await self.session.flush()
+        print(f"📱 Total creados: {len(devices)} dispositivos")
         return devices
 
     async def create_tags_and_assignments(self, residents: List[Resident], users: List[User]) -> List[Tag]:
@@ -652,7 +664,7 @@ class DatabaseSeeder:
         all_users = [superadmin] + managers + professionals
         
         # 7. Dispositivos
-        devices = await self.create_devices(20, residences, all_users)
+        devices = await self.create_devices(residences, all_users)
         
         # 8. Etiquetas
         tags = await self.create_tags_and_assignments(residents, all_users)
@@ -712,7 +724,7 @@ class DatabaseSeeder:
         all_users = [superadmin] + managers + professionals
         
         # 7. Dispositivos
-        devices = await self.create_devices(48, residences, all_users)
+        devices = await self.create_devices(residences, all_users)
         
         # 8. Etiquetas
         tags = await self.create_tags_and_assignments(residents, all_users)
