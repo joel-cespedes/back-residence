@@ -429,7 +429,7 @@ class Measurement(Base):
     spo2: Mapped[Optional[int]]
 
     weight_kg: Mapped[Optional[float]]
-    temperature_c: Mapped[Optional[int]]
+    temperature_c: Mapped[Optional[float]]
 
     taken_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

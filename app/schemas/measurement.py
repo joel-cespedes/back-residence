@@ -90,8 +90,10 @@ class MeasurementOut(BaseModel):
         resident_full_name (Optional[str]): Nombre completo del residente
         bed_name (Optional[str]): Nombre de la cama asignada al residente
         recorded_by (str): ID del usuario que registró la medición
+        recorded_by_name (Optional[str]): Nombre del profesional/gestor que registró la medición
         source (MeasurementSource): Fuente de la medición
         device_id (Optional[str]): ID del dispositivo utilizado
+        device_name (Optional[str]): Nombre del dispositivo utilizado
         type (MeasurementType): Tipo de medición
         systolic (Optional[int]): Presión sistólica
         diastolic (Optional[int]): Presión diastólica
@@ -112,15 +114,17 @@ class MeasurementOut(BaseModel):
     resident_full_name: Optional[str] = None
     bed_name: Optional[str] = None
     recorded_by: str
+    recorded_by_name: Optional[str] = None  # Nombre del profesional/gestor
     source: MeasurementSource
     device_id: Optional[str] = None
+    device_name: Optional[str] = None  # Nombre del dispositivo
     type: MeasurementType
     systolic: Optional[int] = None
     diastolic: Optional[int] = None
     pulse_bpm: Optional[int] = None
     spo2: Optional[int] = None
     weight_kg: Optional[float] = None
-    temperature_c: Optional[int] = None
+    temperature_c: Optional[float] = None
     taken_at: datetime
     created_at: datetime
     updated_at: datetime

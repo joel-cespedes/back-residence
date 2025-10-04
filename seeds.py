@@ -430,22 +430,22 @@ class DatabaseSeeder:
             "temperature": "thermometer"
         }
         
-        # Rangos realistas para cada tipo de medición
+        # Rangos realistas para cada tipo de medición (más específicos para ancianos)
         measurement_configs = {
             "bp": {
-                "systolic_range": (90, 180),
-                "diastolic_range": (60, 110),
-                "pulse_range": (50, 120)
+                "systolic_range": (100, 180),  # Más realista para ancianos
+                "diastolic_range": (60, 100),  # Más realista para ancianos
+                "pulse_range": (50, 100)       # Pulso más conservador
             },
             "spo2": {
-                "spo2_range": (88, 100),
-                "pulse_range": (50, 120)
+                "spo2_range": (92, 100),       # Saturación normal-alta
+                "pulse_range": (50, 100)       # Pulso más conservador
             },
             "weight": {
-                "weight_range": (40.0, 120.0)
+                "weight_range": (45.0, 110.0)  # Peso más realista para ancianos
             },
             "temperature": {
-                "temp_range": (35, 40)
+                "temp_range": (36, 38)         # Temperatura normal para ancianos
             }
         }
         
@@ -467,34 +467,79 @@ class DatabaseSeeder:
             if not residence_users:
                 continue
                 
-            # Crear mediciones para cada día
+            # Crear mediciones para cada día siguiendo protocolos médicos reales
             for day_offset in range(days):
                 measurement_date = now - timedelta(days=day_offset)
                 
-                # 1-3 mediciones por día, distribuidas en horarios típicos
-                measurement_times = []
-                num_measurements = random.randint(1, 3)
+                # PROTOCOLO MÉDICO REAL: 2-4 mediciones por día por residente
+                # Distribución realista según protocolos de residencias de ancianos
+                daily_measurements = []
                 
-                if num_measurements == 1:
-                    # Una medición: horario aleatorio
-                    measurement_times = [random.randint(8, 20)]
-                elif num_measurements == 2:
-                    # Dos mediciones: mañana y tarde/noche
-                    measurement_times = [random.randint(7, 11), random.randint(16, 22)]
-                else:
-                    # Tres mediciones: mañana, tarde, noche
-                    measurement_times = [random.randint(7, 10), random.randint(12, 16), random.randint(18, 22)]
+                # 1. PESO: 1 vez al día (solo en la mañana)
+                if random.random() < 0.8:  # 80% de probabilidad
+                    daily_measurements.append({
+                        "type": "weight",
+                        "hour": random.randint(7, 9),  # Mañana temprano
+                        "priority": 1
+                    })
                 
-                for hour in measurement_times:
+                # 2. PRESIÓN ARTERIAL: 2-3 veces al día
+                bp_count = random.choices([2, 3], weights=[60, 40])[0]  # 60% 2 veces, 40% 3 veces
+                bp_hours = []
+                if bp_count == 2:
+                    bp_hours = [random.randint(8, 10), random.randint(18, 20)]  # Mañana y noche
+                else:  # 3 veces
+                    bp_hours = [random.randint(7, 9), random.randint(14, 16), random.randint(19, 21)]  # Mañana, tarde, noche
+                
+                for hour in bp_hours:
+                    daily_measurements.append({
+                        "type": "bp",
+                        "hour": hour,
+                        "priority": 2
+                    })
+                
+                # 3. TEMPERATURA: 2-4 veces al día (monitoreo frecuente)
+                temp_count = random.choices([2, 3, 4], weights=[30, 50, 20])[0]
+                temp_hours = []
+                if temp_count == 2:
+                    temp_hours = [random.randint(8, 10), random.randint(20, 22)]
+                elif temp_count == 3:
+                    temp_hours = [random.randint(7, 9), random.randint(13, 15), random.randint(19, 21)]
+                else:  # 4 veces
+                    temp_hours = [random.randint(7, 8), random.randint(12, 13), random.randint(16, 17), random.randint(20, 21)]
+                
+                for hour in temp_hours:
+                    daily_measurements.append({
+                        "type": "temperature",
+                        "hour": hour,
+                        "priority": 3
+                    })
+                
+                # 4. SATURACIÓN (SPO2): 1-2 veces al día (residentes con problemas respiratorios)
+                if random.random() < 0.6:  # 60% de residentes necesitan monitoreo SPO2
+                    spo2_count = random.choices([1, 2], weights=[70, 30])[0]
+                    spo2_hours = []
+                    if spo2_count == 1:
+                        spo2_hours = [random.randint(9, 11)]  # Media mañana
+                    else:
+                        spo2_hours = [random.randint(9, 11), random.randint(17, 19)]  # Mañana y tarde
+                    
+                    for hour in spo2_hours:
+                        daily_measurements.append({
+                            "type": "spo2",
+                            "hour": hour,
+                            "priority": 4
+                        })
+                
+                # Ordenar mediciones por hora para evitar conflictos
+                daily_measurements.sort(key=lambda x: x["hour"])
+                
+                # Crear las mediciones del día
+                for measurement_data in daily_measurements:
+                    measurement_type = measurement_data["type"]
+                    hour = measurement_data["hour"]
                     minute = random.randint(0, 59)
                     taken_at = measurement_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
-                    
-                    # Seleccionar tipo de medición con distribución realista
-                    # BP y temperatura son más frecuentes
-                    measurement_type = random.choices(
-                        ["bp", "temperature", "spo2", "weight"],
-                        weights=[40, 30, 20, 10]  # BP más frecuente, peso menos frecuente
-                    )[0]
                     
                     # OBLIGATORIO: Encontrar dispositivo compatible
                     device_type_needed = type_to_device[measurement_type]
@@ -515,30 +560,56 @@ class DatabaseSeeder:
                     systolic = diastolic = pulse_bpm = spo2 = weight_kg = temperature_c = None
                     
                     if measurement_type == "bp":
-                        # PRESIÓN ARTERIAL: systolic + diastolic OBLIGATORIOS, pulse opcional
-                        systolic = random.randint(*config["systolic_range"])
+                        # PRESIÓN ARTERIAL: Valores más realistas y correlacionados
+                        # Generar diastolic primero, luego systolic basado en diastolic
                         diastolic = random.randint(*config["diastolic_range"])
-                        # Asegurar que systolic > diastolic
-                        if systolic <= diastolic:
-                            systolic = diastolic + random.randint(20, 40)
-                        # Pulse opcional pero frecuente (80% de las veces)
-                        if random.random() < 0.8:
+                        # Systolic debe ser 30-50 puntos mayor que diastolic
+                        systolic = diastolic + random.randint(30, 50)
+                        # Asegurar que no exceda el rango máximo
+                        if systolic > config["systolic_range"][1]:
+                            systolic = config["systolic_range"][1]
+                            diastolic = systolic - random.randint(30, 50)
+                        
+                        # Pulse siempre presente en mediciones de presión arterial (95%)
+                        if random.random() < 0.95:
                             pulse_bpm = random.randint(*config["pulse_range"])
                             
                     elif measurement_type == "spo2":
-                        # SATURACIÓN: spo2 OBLIGATORIO, pulse opcional
-                        spo2 = random.randint(*config["spo2_range"])
-                        # Pulse opcional pero frecuente (70% de las veces)
-                        if random.random() < 0.7:
+                        # SATURACIÓN: Valores más realistas para ancianos
+                        # 80% valores normales (95-100), 20% valores bajos (92-94)
+                        if random.random() < 0.8:
+                            spo2 = random.randint(95, 100)  # Normal
+                        else:
+                            spo2 = random.randint(92, 94)  # Baja pero no crítica
+                        
+                        # Pulse frecuente en SPO2 (85%)
+                        if random.random() < 0.85:
                             pulse_bpm = random.randint(*config["pulse_range"])
                             
                     elif measurement_type == "weight":
-                        # PESO: weight_kg OBLIGATORIO
-                        weight_kg = round(random.uniform(*config["weight_range"]), 1)
+                        # PESO: Más realista con variaciones diarias pequeñas
+                        # Base weight para el residente (simulado)
+                        base_weight = random.uniform(55, 85)
+                        # Variación diaria pequeña (±2kg)
+                        daily_variation = random.uniform(-2.0, 2.0)
+                        weight_kg = round(base_weight + daily_variation, 1)
+                        # Asegurar que esté en rango
+                        weight_kg = max(config["weight_range"][0], min(config["weight_range"][1], weight_kg))
                         
                     elif measurement_type == "temperature":
-                        # TEMPERATURA: temperature_c OBLIGATORIO
-                        temperature_c = random.randint(*config["temp_range"])
+                        # TEMPERATURA: Más realista con variaciones por hora del día
+                        # Temperatura base del residente
+                        base_temp = random.uniform(36.2, 37.2)
+                        # Variación por hora del día (más baja en la mañana, más alta en la tarde)
+                        if hour < 12:
+                            variation = random.uniform(-0.3, 0.1)  # Mañana: más baja
+                        elif hour < 18:
+                            variation = random.uniform(-0.1, 0.3)  # Tarde: más alta
+                        else:
+                            variation = random.uniform(-0.2, 0.2)  # Noche: normal
+                        
+                        temp_celsius = base_temp + variation
+                        temperature_c = round(temp_celsius, 1)  # Redondear a 1 decimal
                     
                     # Crear la medición con TODOS los campos necesarios
                     measurement = Measurement(
@@ -563,7 +634,23 @@ class DatabaseSeeder:
                     measurements.append(measurement)
         
         await self.session.flush()
-        print(f"✅ Creadas {len(measurements)} mediciones")
+        
+        # Estadísticas detalladas
+        bp_count = sum(1 for m in measurements if m.type == "bp")
+        temp_count = sum(1 for m in measurements if m.type == "temperature")
+        spo2_count = sum(1 for m in measurements if m.type == "spo2")
+        weight_count = sum(1 for m in measurements if m.type == "weight")
+        
+        active_residents = len([r for r in residents if r.status == "active"])
+        avg_measurements_per_resident = len(measurements) / active_residents if active_residents > 0 else 0
+        
+        print(f"✅ Creadas {len(measurements)} mediciones para {active_residents} residentes activos")
+        print(f"   📊 Promedio: {avg_measurements_per_resident:.1f} mediciones/residente/día")
+        print(f"   🩺 Presión arterial: {bp_count} mediciones")
+        print(f"   🌡️  Temperatura: {temp_count} mediciones")
+        print(f"   💓 Saturación: {spo2_count} mediciones")
+        print(f"   ⚖️  Peso: {weight_count} mediciones")
+        
         return measurements
 
     async def assign_users_to_residences(self, users: List[User], residences: List[Residence], superadmin_id: str = None):

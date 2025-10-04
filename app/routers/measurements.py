@@ -10,7 +10,7 @@ from typing import List
 from app.deps import get_db, get_current_user
 from app.security import new_uuid
 from app.models import (
-    Measurement, Resident, Device, UserResidence, Bed
+    Measurement, Resident, Device, UserResidence, Bed, User
 )
 from app.schemas import (
     MeasurementCreate, MeasurementOut, MeasurementUpdate, MeasurementDailySummary,
@@ -161,10 +161,10 @@ async def paginate_query_measurements(
 
     result = await db.execute(query)
     
-    # Handle JOIN query - Measurement + resident_full_name + bed_name
+    # Handle JOIN query - Measurement + resident_full_name + bed_name + recorded_by_name + device_name
     items = []
     for row in result.all():
-        measurement, resident_full_name, bed_name = row
+        measurement, resident_full_name, bed_name, recorded_by_name, device_name = row
         item_dict = {
             "id": measurement.id,
             "residence_id": measurement.residence_id,
@@ -172,8 +172,10 @@ async def paginate_query_measurements(
             "resident_full_name": resident_full_name,
             "bed_name": bed_name,
             "recorded_by": measurement.recorded_by,
+            "recorded_by_name": recorded_by_name,  # Nombre del profesional/gestor
             "source": measurement.source,
             "device_id": measurement.device_id,
+            "device_name": device_name,  # Nombre del dispositivo
             "type": measurement.type,
             "systolic": measurement.systolic,
             "diastolic": measurement.diastolic,
@@ -280,19 +282,26 @@ async def list_measurements(
     """
     rid = await apply_residence_context_or_infer(db, current, residence_id, resident_id=resident_id)
 
-    # Query with JOINs to get additional information
+    # Query with JOINs to get additional information including names
     query = select(
         Measurement,
         Resident.full_name.label("resident_full_name"),
-        Bed.name.label("bed_name")
+        Bed.name.label("bed_name"),
+        User.name.label("recorded_by_name"),  # Nombre del profesional/gestor
+        Device.name.label("device_name")      # Nombre del dispositivo
     ).join(
         Resident, Measurement.resident_id == Resident.id
     ).join(
         Bed, Resident.bed_id == Bed.id, isouter=True
+    ).join(
+        User, Measurement.recorded_by == User.id  # JOIN para obtener nombre del usuario
+    ).join(
+        Device, Measurement.device_id == Device.id, isouter=True  # JOIN para obtener nombre del dispositivo
     ).where(
         Measurement.residence_id == rid, 
         Measurement.deleted_at.is_(None),
-        Resident.deleted_at.is_(None)
+        Resident.deleted_at.is_(None),
+        User.deleted_at.is_(None)  # Solo usuarios activos
     )
 
     if resident_id:
@@ -472,21 +481,28 @@ async def get_measurements_by_day(
     except ValueError:
         raise HTTPException(status_code=400, detail="date debe estar en formato YYYY-MM-DD")
     
-    # Construir query con JOINs para obtener datos completos
+    # Construir query con JOINs para obtener datos completos incluyendo nombres
     query = select(
         Measurement,
         Resident.full_name.label("resident_full_name"),
-        Bed.name.label("bed_name")
+        Bed.name.label("bed_name"),
+        User.name.label("recorded_by_name"),  # Nombre del profesional/gestor
+        Device.name.label("device_name")      # Nombre del dispositivo
     ).join(
         Resident, Measurement.resident_id == Resident.id
     ).join(
         Bed, Resident.bed_id == Bed.id, isouter=True
+    ).join(
+        User, Measurement.recorded_by == User.id  # JOIN para obtener nombre del usuario
+    ).join(
+        Device, Measurement.device_id == Device.id, isouter=True  # JOIN para obtener nombre del dispositivo
     ).where(
         and_(
             Measurement.resident_id == resident_id,
             func.date(Measurement.taken_at) == target_date,
             Measurement.deleted_at.is_(None),
-            Resident.deleted_at.is_(None)
+            Resident.deleted_at.is_(None),
+            User.deleted_at.is_(None)  # Solo usuarios activos
         )
     ).order_by(Measurement.taken_at.asc())
     
@@ -494,10 +510,10 @@ async def get_measurements_by_day(
     result = await db.execute(query)
     rows = result.all()
     
-    # Convertir a objetos MeasurementOut
+    # Convertir a objetos MeasurementOut con nombres completos
     measurements = []
     for row in rows:
-        measurement, resident_full_name, bed_name = row
+        measurement, resident_full_name, bed_name, recorded_by_name, device_name = row
         measurement_dict = {
             "id": measurement.id,
             "residence_id": measurement.residence_id,
@@ -505,8 +521,97 @@ async def get_measurements_by_day(
             "resident_full_name": resident_full_name,
             "bed_name": bed_name,
             "recorded_by": measurement.recorded_by,
+            "recorded_by_name": recorded_by_name,  # Nombre del profesional/gestor
             "source": measurement.source,
             "device_id": measurement.device_id,
+            "device_name": device_name,  # Nombre del dispositivo
+            "type": measurement.type,
+            "systolic": measurement.systolic,
+            "diastolic": measurement.diastolic,
+            "pulse_bpm": measurement.pulse_bpm,
+            "spo2": measurement.spo2,
+            "weight_kg": measurement.weight_kg,
+            "temperature_c": measurement.temperature_c,
+            "taken_at": measurement.taken_at,
+            "created_at": measurement.created_at,
+            "updated_at": measurement.updated_at,
+            "deleted_at": measurement.deleted_at
+        }
+        measurements.append(MeasurementOut(**measurement_dict))
+    
+    return measurements
+
+@router.get("/residents/{resident_id}/measurements", response_model=List[MeasurementOut])
+async def get_resident_measurements_by_type(
+    resident_id: str,
+    type: str = Query(..., description="Tipo de medición (bp, spo2, weight, temperature)"),
+    size: int = Query(10, ge=1, le=100, description="Número de mediciones a devolver (1-100)"),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+) -> List[MeasurementOut]:
+    """
+    Obtiene las últimas N mediciones de un tipo específico para un residente.
+    
+    Retorna las mediciones más recientes del tipo especificado para el residente,
+    ordenadas por fecha de toma descendente (más recientes primero).
+    
+    Args:
+        resident_id: ID del residente
+        type: Tipo de medición (bp, spo2, weight, temperature)
+        size: Número de mediciones a devolver (máximo 100)
+    """
+    # Validar tipo de medición
+    valid_types = ["bp", "spo2", "weight", "temperature"]
+    if type not in valid_types:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Tipo de medición inválido. Tipos válidos: {', '.join(valid_types)}"
+        )
+    
+    # Construir query con JOINs para obtener datos completos incluyendo nombres
+    query = select(
+        Measurement,
+        Resident.full_name.label("resident_full_name"),
+        Bed.name.label("bed_name"),
+        User.name.label("recorded_by_name"),  # Nombre del profesional/gestor
+        Device.name.label("device_name")      # Nombre del dispositivo
+    ).join(
+        Resident, Measurement.resident_id == Resident.id
+    ).join(
+        Bed, Resident.bed_id == Bed.id, isouter=True
+    ).join(
+        User, Measurement.recorded_by == User.id  # JOIN para obtener nombre del usuario
+    ).join(
+        Device, Measurement.device_id == Device.id, isouter=True  # JOIN para obtener nombre del dispositivo
+    ).where(
+        and_(
+            Measurement.resident_id == resident_id,
+            Measurement.type == type,
+            Measurement.deleted_at.is_(None),
+            Resident.deleted_at.is_(None),
+            User.deleted_at.is_(None)  # Solo usuarios activos
+        )
+    ).order_by(Measurement.taken_at.desc()).limit(size)
+    
+    # Ejecutar query
+    result = await db.execute(query)
+    rows = result.all()
+    
+    # Convertir a objetos MeasurementOut con nombres completos
+    measurements = []
+    for row in rows:
+        measurement, resident_full_name, bed_name, recorded_by_name, device_name = row
+        measurement_dict = {
+            "id": measurement.id,
+            "residence_id": measurement.residence_id,
+            "resident_id": measurement.resident_id,
+            "resident_full_name": resident_full_name,
+            "bed_name": bed_name,
+            "recorded_by": measurement.recorded_by,
+            "recorded_by_name": recorded_by_name,  # Nombre del profesional/gestor
+            "source": measurement.source,
+            "device_id": measurement.device_id,
+            "device_name": device_name,  # Nombre del dispositivo
             "type": measurement.type,
             "systolic": measurement.systolic,
             "diastolic": measurement.diastolic,
