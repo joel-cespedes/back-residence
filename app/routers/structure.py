@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Dict
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from sqlalchemy import select, func, and_, or_, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -240,14 +241,14 @@ async def create_floor(
     await db.refresh(floor)
     return floor
 
-@router.get("/floors", response_model=PaginatedResponse)
+@router.get("/floors", response_model=PaginatedResponse[FloorOut])
 async def list_floors(
     pagination: PaginationParams = Depends(),
     filters: FilterParams = Depends(),
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
     residence_id: str | None = Query(None, description="Filter by residence ID"),
-):
+) -> PaginatedResponse[FloorOut]:
     """List floors with pagination"""
     final_residence_id = residence_id
     print(f"DEBUG: list_floors called with residence_id={final_residence_id}")
@@ -517,7 +518,7 @@ async def create_room(
     await db.refresh(room)
     return room
 
-@router.get("/rooms", response_model=PaginatedResponse)
+@router.get("/rooms", response_model=PaginatedResponse[RoomOut])
 async def list_rooms(
     pagination: PaginationParams = Depends(),
     filters: FilterParams = Depends(),
@@ -526,7 +527,7 @@ async def list_rooms(
     residence_id: str | None = Query(None, description="Filter by residence ID"),
     floor_id: str | None = Query(None, description="Filter by floor ID"),
     search: str | None = Query(None, description="Search term for room name, floor name, or residence name"),
-):
+) -> PaginatedResponse[RoomOut]:
     """List rooms with pagination"""
     print(f"DEBUG: list_rooms called with residence_id={residence_id}, floor_id={floor_id}")
 
@@ -772,7 +773,7 @@ async def create_bed(
     await db.refresh(bed)
     return bed
 
-@router.get("/beds", response_model=PaginatedResponse)
+@router.get("/beds", response_model=PaginatedResponse[BedOut])
 async def list_beds(
     pagination: PaginationParams = Depends(),
     filters: FilterParams = Depends(),
@@ -780,7 +781,7 @@ async def list_beds(
     current = Depends(get_current_user),
     residence_id: str | None = Query(None, description="Filter by residence ID"),
     floor_id: str | None = Query(None, description="Filter by floor ID"),
-):
+) -> PaginatedResponse[BedOut]:
     """List beds with pagination and related names"""
     final_residence_id = residence_id
     print(f"DEBUG: list_beds called with residence_id={final_residence_id}, floor_id={floor_id}")

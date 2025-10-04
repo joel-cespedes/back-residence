@@ -63,7 +63,7 @@ class DeviceOut(BaseModel):
         updated_at (datetime): Fecha de última actualización
         deleted_at (Optional[datetime]): Fecha de eliminación (soft delete)
     """
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra='allow')
 
     id: str
     residence_id: str

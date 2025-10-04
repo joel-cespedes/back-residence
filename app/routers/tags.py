@@ -125,14 +125,14 @@ async def create_tag(
     await db.refresh(tag)
     return tag
 
-@router.get("/", response_model=PaginatedResponse)
+@router.get("/", response_model=PaginatedResponse[TagOut])
 async def list_tags(
     pagination: PaginationParams = Depends(),
     filters: FilterParams = Depends(),
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
     residence_id: str | None = Query(None, alias="residence_id"),
-):
+) -> PaginatedResponse[TagOut]:
     """List tags with pagination and filters"""
     await apply_residence_context(db, current, residence_id)
 

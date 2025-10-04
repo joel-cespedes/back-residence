@@ -92,6 +92,10 @@ class ResidentOut(BaseModel):
         bed_id (Optional[str]): ID de la cama asignada
         room_id (Optional[str]): ID de la habitación asignada
         floor_id (Optional[str]): ID del piso asignado
+        bed_name (Optional[str]): Nombre de la cama asignada
+        room_name (Optional[str]): Nombre de la habitación asignada
+        floor_name (Optional[str]): Nombre del piso asignado
+        residence_name (Optional[str]): Nombre de la residencia
         created_at (datetime): Fecha de creación del registro
         updated_at (datetime): Fecha de última actualización
     """
@@ -110,5 +114,9 @@ class ResidentOut(BaseModel):
     bed_id: Optional[str] = None
     room_id: Optional[str] = None  # ← AÑADIDO
     floor_id: Optional[str] = None  # ← AÑADIDO
+    bed_name: Optional[str] = None
+    room_name: Optional[str] = None
+    floor_name: Optional[str] = None
+    residence_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime

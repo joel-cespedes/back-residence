@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Dict
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from sqlalchemy import select, func, and_, or_, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -37,7 +38,7 @@ async def paginate_query_residents(
     room_id: str = None,
     bed_id: str = None,
     residence_id: str = None
-) -> PaginatedResponse:
+) -> PaginatedResponse[ResidentOut]:
     """Apply pagination and filters to a residents query"""
 
     if filter_params:
@@ -208,7 +209,7 @@ async def create_resident(
         logger.error(f"Data received: {data.model_dump() if hasattr(data, 'model_dump') else data}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-@router.get("/", response_model=PaginatedResponse)
+@router.get("/", response_model=PaginatedResponse[ResidentOut])
 async def list_residents(
     pagination: PaginationParams = Depends(),
     filters: FilterParams = Depends(),
@@ -218,7 +219,7 @@ async def list_residents(
     room_id: str | None = Query(None),
     bed_id: str | None = Query(None),
     residence_id_param: str | None = Query(None, alias="residence_id"),
-):
+) -> PaginatedResponse[ResidentOut]:
     """List residents with pagination and filters - filtered by user role and assignments"""
     import logging
     logger = logging.getLogger(__name__)

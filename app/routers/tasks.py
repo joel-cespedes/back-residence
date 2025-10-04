@@ -259,14 +259,14 @@ async def create_category(
         "deleted_at": tc.deleted_at
     }
 
-@router.get("/categories", response_model=PaginatedResponse)
+@router.get("/categories", response_model=PaginatedResponse[TaskCategoryOut])
 async def list_categories(
     pagination: PaginationParams = Depends(),
     filters: FilterParams = Depends(),
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
     residence_id: str | None = Query(None, description="Filter by residence ID"),
-):
+) -> PaginatedResponse[TaskCategoryOut]:
     query = select(TaskCategory).where(TaskCategory.deleted_at.is_(None))
 
     if current["role"] != "superadmin":
@@ -484,7 +484,7 @@ async def create_template(
         "deleted_at": t.deleted_at
     }
 
-@router.get("/templates", response_model=PaginatedResponse)
+@router.get("/templates", response_model=PaginatedResponse[TaskTemplateOut])
 async def list_templates(
     pagination: PaginationParams = Depends(),
     filters: FilterParams = Depends(),
@@ -492,7 +492,7 @@ async def list_templates(
     current = Depends(get_current_user),
     residence_id: str | None = Query(None, description="Filter by residence ID"),
     category_id: str | None = Query(None),
-):
+) -> PaginatedResponse[TaskTemplateOut]:
     query = select(TaskTemplate).where(TaskTemplate.deleted_at.is_(None))
 
     if current["role"] != "superadmin":
@@ -717,7 +717,7 @@ async def apply_task(
         "deleted_at": app.deleted_at
     }
 
-@router.get("/applications", response_model=PaginatedResponse)
+@router.get("/applications", response_model=PaginatedResponse[TaskApplicationOut])
 async def list_applications(
     pagination: PaginationParams = Depends(),
     filters: FilterParams = Depends(),
@@ -727,7 +727,7 @@ async def list_applications(
     resident_id: str | None = Query(None, description="Filter by resident ID"),
     template_id: str | None = Query(None, description="Filter by template ID"),
     category_id: str | None = Query(None, description="Filter by category ID"),
-):
+) -> PaginatedResponse[TaskApplicationOut]:
     rid = await _set_residence_context(db, current, residence_id)
 
     # Si necesitamos filtrar por categoría, hacer JOIN con TaskTemplate

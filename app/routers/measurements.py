@@ -238,7 +238,7 @@ async def create_measurement(
     await db.refresh(m)
     return m
 
-@router.get("/", response_model=PaginatedResponse)
+@router.get("/", response_model=PaginatedResponse[MeasurementOut])
 async def list_measurements(
     pagination: PaginationParams = Depends(),
     filters: FilterParams = Depends(),
@@ -246,7 +246,7 @@ async def list_measurements(
     current = Depends(get_current_user),
     residence_id: str | None = Query(None, description="Filter by residence ID"),
     resident_id: str | None = Query(None),
-):
+) -> PaginatedResponse[MeasurementOut]:
     """
     List measurements with pagination and filters
     """

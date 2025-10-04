@@ -82,14 +82,14 @@ async def _validate_assignment_scope(db: AsyncSession, user_role: str, user_id: 
 # ENDPOINTS CRUD
 # =====================================================================
 
-@router.get("/", response_model=PaginatedResponse)
+@router.get("/", response_model=PaginatedResponse[UserOut])
 async def list_users(
     pagination: PaginationParams = Depends(),
     filters: FilterParams = Depends(),
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
     role: str = Query(None, description="Filter by role: manager, professional"),
-):
+) -> PaginatedResponse[UserOut]:
     """List users with pagination and role-based filtering"""
     
     # Build base query

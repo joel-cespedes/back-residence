@@ -4,9 +4,12 @@
 
 from __future__ import annotations
 
-from typing import Optional, List, Dict, Literal
+from typing import Optional, List, Dict, Literal, TypeVar, Generic
 from datetime import datetime
 from pydantic import BaseModel, Field
+
+# TypeVar para hacer PaginatedResponse genérica
+T = TypeVar('T')
 
 # =========================================================
 # ESQUEMAS DE PAGINACIÓN
@@ -30,12 +33,12 @@ class PaginationParams(BaseModel):
     sort_order: Optional[Literal['asc', 'desc']] = Field('asc', description="Orden de clasificación")
 
 
-class PaginatedResponse(BaseModel):
+class PaginatedResponse(BaseModel, Generic[T]):
     """
-    Esquema para respuesta paginada.
+    Esquema genérico para respuesta paginada.
 
     Attributes:
-        items (List[Dict]): Elementos de la página actual
+        items (List[T]): Elementos de la página actual con tipo específico
         total (int): Total de elementos
         page (int): Página actual
         size (int): Tamaño de página
@@ -43,7 +46,7 @@ class PaginatedResponse(BaseModel):
         has_next (bool): Indica si hay página siguiente
         has_prev (bool): Indica si hay página anterior
     """
-    items: List[Dict]
+    items: List[T]
     total: int
     page: int
     size: int

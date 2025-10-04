@@ -220,14 +220,14 @@ async def create_residence(
     await db.refresh(residence)
     return residence
 
-@router.get("/", response_model=PaginatedResponse)
+@router.get("/", response_model=PaginatedResponse[ResidenceOut])
 async def list_residences(
     pagination: PaginationParams = Depends(),
     filters: FilterParams = Depends(),
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
     residence_id: str | None = Query(None, alias="residence_id"),
-):
+) -> PaginatedResponse[ResidenceOut]:
     """List residences with pagination and filters"""
     
     # Build base query based on user role

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Dict
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from sqlalchemy import select, func, and_, or_, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -49,7 +50,7 @@ async def paginate_query_devices(
     db: AsyncSession,
     pagination: PaginationParams,
     filter_params: FilterParams = None
-) -> PaginatedResponse:
+) -> PaginatedResponse[DeviceOut]:
     """Apply pagination and filters to a devices query"""
 
     if filter_params:
@@ -222,14 +223,14 @@ async def create_device(
         "deleted_at": device.deleted_at
     }
 
-@router.get("/", response_model=PaginatedResponse)
+@router.get("/", response_model=PaginatedResponse[DeviceOut])
 async def list_devices(
     pagination: PaginationParams = Depends(),
     filters: FilterParams = Depends(),
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
     residence_id: str | None = Query(None, alias="residence_id"),
-):
+) -> PaginatedResponse[DeviceOut]:
     """List devices with pagination and filters"""
     query = select(Device).where(Device.deleted_at.is_(None))
 

@@ -136,10 +136,22 @@ class BedOut(BaseModel):
         residence_id (str): ID de la residencia a la que pertenece
         room_id (str): ID de la habitación a la que pertenece
         name (str): Nombre de la cama
+        room_name (Optional[str]): Nombre de la habitación
+        floor_name (Optional[str]): Nombre del piso
+        residence_name (Optional[str]): Nombre de la residencia
+        resident_name (Optional[str]): Nombre del residente asignado
+        created_at (Optional[str]): Fecha de creación
+        updated_at (Optional[str]): Fecha de actualización
     """
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra='allow')
 
     id: str
     residence_id: str
     room_id: str
     name: str
+    room_name: Optional[str] = None
+    floor_name: Optional[str] = None
+    residence_name: Optional[str] = None
+    resident_name: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
