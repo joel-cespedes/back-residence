@@ -73,33 +73,33 @@ NOMBRES_USUARIOS = {
 }
 
 CATEGORIAS_TAREAS = [
-    "Medicación", "Higiene Personal", "Alimentación", "Movilidad", 
-    "Control Signos Vitales", "Terapia Física", "Socialización", "Descanso"
+    "Cuidados Personales", "Alimentación", "Movilidad", "Medicación", 
+    "Salud y Bienestar", "Socialización", "Seguridad"
 ]
 
 PLANTILLAS_TAREAS = {
-    "Medicación": [
-        ("Toma matutina de medicamentos", ["Tomado", "Parcial", "No tomado", "Rechazado"]),
-        ("Toma nocturna de medicamentos", ["Tomado", "Parcial", "No tomado", "Rechazado"]),
-        ("Control de presión arterial", ["Normal", "Elevada", "Baja", "Crítica"]),
-        ("Control de glucosa", ["Normal", "Elevada", "Baja", "Crítica"])
-    ],
-    "Higiene Personal": [
-        ("Aseo matutino", ["Completo", "Parcial", "No realizado", "Rechazado"]),
-        ("Cambio de ropa", ["Realizado", "Parcial", "No realizado", "Rechazado"]),
-        ("Higiene bucal", ["Completa", "Parcial", "No realizada", "Rechazada"]),
-        ("Baño diario", ["Completo", "Parcial", "No realizado", "Rechazado"])
-    ],
-    "Alimentación": [
-        ("Desayuno", ["Completo", "Parcial", "No consumido", "Rechazado"]),
-        ("Almuerzo", ["Completo", "Parcial", "No consumido", "Rechazado"]),
-        ("Cena", ["Completo", "Parcial", "No consumido", "Rechazado"]),
-        ("Colación", ["Completa", "Parcial", "No consumida", "Rechazada"])
+    "Cuidados Personales": [
+        ("Aseo personal", ["carro", "casa", "policia", "montaña", "avión", "río"]),
+        ("Cambio de pañal", ["carro", "casa", "policia", "montaña", "avión", "río"]),
+        ("Cambio postural", ["playa", "ciudad", "universo", "estrella", "galaxia", "planeta"])
     ],
     "Movilidad": [
-        ("Transferencia silla-cama", ["Completa", "Con ayuda", "No realizada", "Rechazada"]),
-        ("Caminata asistida", ["Realizada", "Con ayuda", "No realizada", "Rechazada"]),
-        ("Ejercicios de movilidad", ["Completos", "Parciales", "No realizados", "Rechazados"])
+        ("Atención en caída", ["verde", "azul", "rojo", "amarillo", "blanco", "negro"]),
+        ("Demostración", ["sol", "luna", "lluvia", "nieve", "viento", "rayo"]),
+        ("Mantenimiento físico", ["verde", "azul", "rojo", "amarillo", "blanco", "negro"])
+    ],
+    "Alimentación": [
+        ("Comida asistida", ["futbol", "tenis", "natación", "ciclismo", "carrera", "golf"])
+    ],
+    "Medicación": [
+        ("Toma medicación", ["libro", "película", "música", "arte", "poesía", "teatro"])
+    ],
+    "Salud y Bienestar": [
+        ("Control de ulceras", ["perro", "gato", "pájaro", "pez", "conejo", "hamster"])
+    ],
+    "Socialización": [
+        ("Visita asistida", ["manzana", "banana", "naranja", "uva", "limón", "kiwi"]),
+        ("Visita familiar", ["manzana", "banana", "naranja", "uva", "limón", "kiwi"])
     ]
 }
 
@@ -317,19 +317,44 @@ class DatabaseSeeder:
                 # Crear plantillas para cada categoría
                 templates_data = PLANTILLAS_TAREAS.get(category_name, [])
                 for template_name, statuses in templates_data:
-                    template = TaskTemplate(
-                        id=str(uuid.uuid4()),
-                        residence_id=residence.id,
-                        task_category_id=category.id,
-                        name=template_name,
-                        status1=statuses[0] if len(statuses) > 0 else None,
-                        status2=statuses[1] if len(statuses) > 1 else None,
-                        status3=statuses[2] if len(statuses) > 2 else None,
-                        status4=statuses[3] if len(statuses) > 3 else None,
-                        status5=statuses[4] if len(statuses) > 4 else None,
-                        status6=statuses[5] if len(statuses) > 5 else None,
-                        created_by=creator_id
-                    )
+                    # Solo 50% de las tareas tendrán estados definidos
+                    if random.random() < 0.5:
+                        # Esta tarea tendrá estados, pero cantidad variable (2-6)
+                        num_statuses = random.randint(2, 6)
+                        status_list = []
+                        for i in range(num_statuses):
+                            status_list.append(random.choice(statuses))
+                        
+                        # Rellenar solo los primeros N estados
+                        template = TaskTemplate(
+                            id=str(uuid.uuid4()),
+                            residence_id=residence.id,
+                            task_category_id=category.id,
+                            name=template_name,
+                            status1=status_list[0] if len(status_list) > 0 else None,
+                            status2=status_list[1] if len(status_list) > 1 else None,
+                            status3=status_list[2] if len(status_list) > 2 else None,
+                            status4=status_list[3] if len(status_list) > 3 else None,
+                            status5=status_list[4] if len(status_list) > 4 else None,
+                            status6=status_list[5] if len(status_list) > 5 else None,
+                            created_by=creator_id
+                        )
+                    else:
+                        # Esta tarea no tendrá estados (todos None)
+                        template = TaskTemplate(
+                            id=str(uuid.uuid4()),
+                            residence_id=residence.id,
+                            task_category_id=category.id,
+                            name=template_name,
+                            status1=None,
+                            status2=None,
+                            status3=None,
+                            status4=None,
+                            status5=None,
+                            status6=None,
+                            created_by=creator_id
+                        )
+                    
                     self.session.add(template)
                     all_templates.append(template)
 

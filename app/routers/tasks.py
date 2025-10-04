@@ -4,6 +4,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, status, Header, Query
 from sqlalchemy import select, update, func, and_, text
 from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime, timezone
+import uuid
 
 from app.deps import get_db, get_current_user
 from app.models import (
@@ -14,6 +16,7 @@ from app.schemas import (
     TaskCategoryCreate, TaskCategoryUpdate, TaskCategoryOut,
     TaskTemplateCreate, TaskTemplateUpdate, TaskTemplateOut,
     TaskApplicationCreate, TaskApplicationUpdate, TaskApplicationOut,
+    TaskApplicationBatchRequest, TaskApplicationBatchResponse,
     PaginationParams, PaginatedResponse, FilterParams
 )
 from app.security import new_uuid, decrypt_data
@@ -1059,3 +1062,154 @@ async def get_task_applications_by_resident(
         has_next=has_next,
         has_prev=has_prev
     )
+
+
+@router.post("/applications/batch", response_model=TaskApplicationBatchResponse)
+async def create_task_applications_batch(
+    payload: TaskApplicationBatchRequest,
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user)
+) -> TaskApplicationBatchResponse:
+    """
+    Crea aplicaciones de tareas en lote para múltiples residentes.
+    
+    Crea una aplicación de tarea por cada combinación de resident_id × task_template_id.
+    Ejemplo: 3 residentes × 3 tareas = 9 registros creados.
+    
+    Args:
+        payload: Solicitud con resident_ids, task_template_ids y residence_id
+    """
+    # Validar que todos los resident_ids pertenecen a la residencia
+    residents_query = select(Resident).where(
+        Resident.id.in_(payload.resident_ids),
+        Resident.residence_id == payload.residence_id,
+        Resident.deleted_at.is_(None)
+    )
+    residents_result = await db.execute(residents_query)
+    valid_residents = residents_result.scalars().all()
+    
+    if len(valid_residents) != len(payload.resident_ids):
+        raise HTTPException(
+            status_code=400, 
+            detail="Algunos resident_ids no pertenecen a la residencia especificada o no existen"
+        )
+    
+    # Validar que todas las task_template_ids existen
+    templates_query = select(TaskTemplate).where(
+        TaskTemplate.id.in_(payload.task_template_ids),
+        TaskTemplate.residence_id == payload.residence_id,
+        TaskTemplate.deleted_at.is_(None)
+    )
+    templates_result = await db.execute(templates_query)
+    valid_templates = templates_result.scalars().all()
+    
+    if len(valid_templates) != len(payload.task_template_ids):
+        raise HTTPException(
+            status_code=400, 
+            detail="Algunas task_template_ids no existen en la residencia especificada"
+        )
+    
+    # Usar transacción para rollback en caso de error
+    try:
+        applications = []
+        
+        # Crear aplicación por cada combinación resident × template
+        for resident in valid_residents:
+            for template in valid_templates:
+                # 1. Obtener el status seleccionado por el usuario
+                status_text = payload.task_statuses.get(template.id)
+                
+                # 2. Buscar en qué campo (status1-6) está ese texto
+                status_index = None
+                if template.status1 == status_text:
+                    status_index = 1
+                elif template.status2 == status_text:
+                    status_index = 2
+                elif template.status3 == status_text:
+                    status_index = 3
+                elif template.status4 == status_text:
+                    status_index = 4
+                elif template.status5 == status_text:
+                    status_index = 5
+                elif template.status6 == status_text:
+                    status_index = 6
+                
+                # 3. Crear la aplicación con el status seleccionado
+                application = TaskApplication(
+                    id=str(uuid.uuid4()),
+                    residence_id=payload.residence_id,
+                    resident_id=resident.id,
+                    task_template_id=template.id,
+                    applied_by=current["id"],
+                    status=status_text,  # Status seleccionado por el usuario
+                    selected_status_index=status_index,  # Índice del campo (1-6)
+                    selected_status_text=status_text,    # Texto del status
+                    applied_at=datetime.now(timezone.utc)
+                )
+                db.add(application)
+                applications.append(application)
+        
+        # Commit de la transacción
+        await db.commit()
+        
+        # Consultar las aplicaciones creadas con datos completos para la respuesta
+        applications_query = select(
+            TaskApplication,
+            Resident.full_name.label("resident_name"),
+            TaskTemplate.name.label("task_template_name"),
+            TaskCategory.name.label("task_category_name"),
+            User.name.label("applied_by_name")
+        ).join(
+            Resident, TaskApplication.resident_id == Resident.id
+        ).join(
+            TaskTemplate, TaskApplication.task_template_id == TaskTemplate.id
+        ).join(
+            TaskCategory, TaskTemplate.task_category_id == TaskCategory.id
+        ).join(
+            User, TaskApplication.applied_by == User.id
+        ).where(
+            TaskApplication.residence_id == payload.residence_id,
+            TaskApplication.resident_id.in_(payload.resident_ids),
+            TaskApplication.task_template_id.in_(payload.task_template_ids)
+        ).order_by(TaskApplication.applied_at.desc())
+        
+        result = await db.execute(applications_query)
+        rows = result.all()
+        
+        # Convertir a TaskApplicationOut
+        response_applications = []
+        for row in rows:
+            application, resident_name, template_name, category_name, applied_by_name = row
+            app_dict = {
+                "id": application.id,
+                "residence_id": application.residence_id,
+                "resident_id": application.resident_id,
+                "resident_name": resident_name,
+                "task_template_id": application.task_template_id,
+                "task_template_name": template_name,
+                "task_category_id": None,  # Se puede obtener del template si es necesario
+                "task_category_name": category_name,
+                "applied_by": application.applied_by,
+                "applied_by_name": applied_by_name,
+                "status": application.status,
+                "comments": application.comments,
+                "applied_at": application.applied_at,
+                "selected_status_index": application.selected_status_index,
+                "selected_status_text": application.selected_status_text,
+                "created_at": application.created_at,
+                "updated_at": application.updated_at,
+                "deleted_at": application.deleted_at
+            }
+            response_applications.append(TaskApplicationOut(**app_dict))
+        
+        return TaskApplicationBatchResponse(
+            created_count=len(response_applications),
+            applications=response_applications
+        )
+        
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al crear aplicaciones en lote: {str(e)}"
+        )

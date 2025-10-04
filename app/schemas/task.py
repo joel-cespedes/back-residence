@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -226,3 +226,17 @@ class TaskApplicationOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     deleted_at: Optional[datetime] = None
+
+
+class TaskApplicationBatchRequest(BaseModel):
+    """Esquema para solicitud de aplicaciones de tareas en lote"""
+    residence_id: str
+    resident_ids: List[str]
+    task_template_ids: List[str]
+    task_statuses: Dict[str, str]  # task_template_id -> status_text
+
+
+class TaskApplicationBatchResponse(BaseModel):
+    """Esquema para respuesta de aplicaciones de tareas en lote"""
+    created_count: int
+    applications: List[TaskApplicationOut]
