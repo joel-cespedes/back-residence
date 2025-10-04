@@ -28,7 +28,7 @@ from .location import FloorCreate, FloorUpdate, FloorOut, RoomCreate, RoomUpdate
 from .resident import ResidentCreate, ResidentUpdate, ResidentChangeBed, ResidentOut
 from .device import DeviceCreate, DeviceUpdate, DeviceOut
 from .task import TaskCategoryCreate, TaskCategoryUpdate, TaskCategoryOut, TaskTemplateCreate, TaskTemplateUpdate, TaskTemplateOut, TaskApplicationCreate, TaskApplicationUpdate, TaskApplicationOut
-from .measurement import MeasurementCreate, MeasurementUpdate, MeasurementOut
+from .measurement import MeasurementCreate, MeasurementUpdate, MeasurementOut, MeasurementDailySummary
 from .tag import TagCreate, TagUpdate, TagOut, ResidentTagAssign
 from .dashboard import DashboardMetric, MonthlyData, YearComparison, ResidentStats, MeasurementStats, TaskStats, TaskCategoryWithCount, MonthlyResidentData, NewResidentStats, DeviceStats, DashboardData
 from .pagination import PaginationParams, PaginatedResponse, FilterParams
@@ -117,6 +117,7 @@ __all__ = [
     "MeasurementCreate",
     "MeasurementUpdate",
     "MeasurementOut",
+    "MeasurementDailySummary",
 
     # Etiquetas
     "TagCreate",

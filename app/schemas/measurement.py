@@ -4,8 +4,8 @@
 
 from __future__ import annotations
 
-from typing import Optional
-from datetime import datetime
+from typing import Optional, List
+from datetime import datetime, date
 from pydantic import BaseModel, ConfigDict, Field
 
 from .enums import MeasurementSource, MeasurementType
@@ -125,3 +125,29 @@ class MeasurementOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     deleted_at: Optional[datetime] = None
+
+
+class MeasurementDailySummary(BaseModel):
+    """
+    Esquema para el resumen diario de mediciones por residente.
+    
+    Attributes:
+        resident_id (str): ID del residente
+        resident_full_name (str): Nombre completo del residente
+        bed_name (Optional[str]): Nombre de la cama asignada
+        date (date): Fecha de las mediciones
+        measurement_count (int): Número total de mediciones del día
+        measurement_types (List[str]): Tipos de mediciones realizadas
+        first_measurement_time (str): Hora de la primera medición (HH:MM:SS)
+        last_measurement_time (str): Hora de la última medición (HH:MM:SS)
+    """
+    model_config = ConfigDict(from_attributes=True)
+    
+    resident_id: str
+    resident_full_name: str
+    bed_name: Optional[str] = None
+    date: date
+    measurement_count: int
+    measurement_types: List[str]
+    first_measurement_time: str
+    last_measurement_time: str

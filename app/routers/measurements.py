@@ -4,6 +4,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, status, Header, Query
 from sqlalchemy import select, update, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime, date
+from typing import List
 
 from app.deps import get_db, get_current_user
 from app.security import new_uuid
@@ -11,7 +13,7 @@ from app.models import (
     Measurement, Resident, Device, UserResidence, Bed
 )
 from app.schemas import (
-    MeasurementCreate, MeasurementOut, MeasurementUpdate,
+    MeasurementCreate, MeasurementOut, MeasurementUpdate, MeasurementDailySummary,
     PaginationParams, PaginatedResponse, FilterParams
 )
 from sqlalchemy import text
@@ -344,6 +346,185 @@ async def list_measurements_simple(
     )
     return q.scalars().all()
 
+# -------------------- ENDPOINTS ESPECÍFICOS (ANTES DEL GENÉRICO) --------------------
+
+async def paginate_query_daily_summary(
+    query,
+    db: AsyncSession,
+    pagination: PaginationParams,
+    filter_params: FilterParams = None
+) -> PaginatedResponse[MeasurementDailySummary]:
+    """Apply pagination and filters to a daily summary query"""
+    
+    # Apply filters
+    if filter_params:
+        if filter_params.date_from:
+            query = query.where(func.date(Measurement.taken_at) >= filter_params.date_from.date())
+        if filter_params.date_to:
+            query = query.where(func.date(Measurement.taken_at) <= filter_params.date_to.date())
+        if filter_params.search:
+            search_term = f"%{filter_params.search}%"
+            query = query.where(Resident.full_name.ilike(search_term))
+    
+    # Get total count
+    count_query = select(func.count()).select_from(query.subquery())
+    total = await db.scalar(count_query)
+    
+    # Apply pagination
+    offset = (pagination.page - 1) * pagination.size
+    query = query.offset(offset).limit(pagination.size)
+    
+    # Execute query
+    result = await db.execute(query)
+    rows = result.all()
+    
+    # Convert to MeasurementDailySummary objects
+    items = []
+    for row in rows:
+        summary = MeasurementDailySummary(
+            resident_id=str(row.resident_id),
+            resident_full_name=row.resident_full_name,
+            bed_name=row.bed_name,
+            date=row.date,
+            measurement_count=row.measurement_count,
+            measurement_types=row.measurement_types,
+            first_measurement_time=row.first_measurement_time,
+            last_measurement_time=row.last_measurement_time
+        )
+        items.append(summary)
+    
+    # Calculate pagination info
+    pages = (total + pagination.size - 1) // pagination.size
+    
+    return PaginatedResponse[MeasurementDailySummary](
+        items=items,
+        total=total,
+        page=pagination.page,
+        size=pagination.size,
+        pages=pages,
+        has_next=pagination.page < pages,
+        has_prev=pagination.page > 1
+    )
+
+@router.get("/daily-summary", response_model=PaginatedResponse[MeasurementDailySummary])
+async def get_daily_summary(
+    pagination: PaginationParams = Depends(),
+    filters: FilterParams = Depends(),
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+    residence_id: str | None = Query(None, description="Filter by residence ID"),
+) -> PaginatedResponse[MeasurementDailySummary]:
+    """
+    Obtiene un resumen diario de mediciones agrupadas por residente y fecha.
+    
+    Retorna un registro por cada residente/día que tenga mediciones, con información
+    agregada como cantidad de mediciones, tipos realizados y horarios.
+    """
+    rid = await apply_residence_context_or_infer(db, current, residence_id)
+    
+    # Query with JOINs and GROUP BY using SQLAlchemy ORM
+    query = select(
+        Resident.id.label("resident_id"),
+        Resident.full_name.label("resident_full_name"),
+        Bed.name.label("bed_name"),
+        func.date(Measurement.taken_at).label("date"),
+        func.count(Measurement.id).label("measurement_count"),
+        func.array_agg(func.distinct(Measurement.type)).label("measurement_types"),
+        func.min(func.to_char(Measurement.taken_at, 'HH24:MI:SS')).label("first_measurement_time"),
+        func.max(func.to_char(Measurement.taken_at, 'HH24:MI:SS')).label("last_measurement_time")
+    ).select_from(
+        Measurement.__table__
+        .join(Resident.__table__, Measurement.resident_id == Resident.id)
+        .join(Bed.__table__, Resident.bed_id == Bed.id, isouter=True)
+    ).where(
+        Measurement.residence_id == rid,
+        Measurement.deleted_at.is_(None),
+        Resident.deleted_at.is_(None)
+    ).group_by(
+        Resident.id,
+        Resident.full_name,
+        Bed.name,
+        func.date(Measurement.taken_at)
+    ).order_by(
+        func.date(Measurement.taken_at).desc(),
+        Resident.full_name.asc()
+    )
+    
+    return await paginate_query_daily_summary(query, db, pagination, filters)
+
+
+@router.get("/by-day", response_model=List[MeasurementOut])
+async def get_measurements_by_day(
+    resident_id: str = Query(..., description="ID del residente"),
+    date: str = Query(..., description="Fecha específica (YYYY-MM-DD)"),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+) -> List[MeasurementOut]:
+    """
+    Obtiene todas las mediciones de un residente en una fecha específica.
+    
+    Retorna todas las mediciones del residente para el día especificado,
+    ordenadas cronológicamente por hora de toma.
+    """
+    # Validar formato de fecha
+    try:
+        target_date = datetime.strptime(date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="date debe estar en formato YYYY-MM-DD")
+    
+    # Construir query con JOINs para obtener datos completos
+    query = select(
+        Measurement,
+        Resident.full_name.label("resident_full_name"),
+        Bed.name.label("bed_name")
+    ).join(
+        Resident, Measurement.resident_id == Resident.id
+    ).join(
+        Bed, Resident.bed_id == Bed.id, isouter=True
+    ).where(
+        and_(
+            Measurement.resident_id == resident_id,
+            func.date(Measurement.taken_at) == target_date,
+            Measurement.deleted_at.is_(None),
+            Resident.deleted_at.is_(None)
+        )
+    ).order_by(Measurement.taken_at.asc())
+    
+    # Ejecutar query
+    result = await db.execute(query)
+    rows = result.all()
+    
+    # Convertir a objetos MeasurementOut
+    measurements = []
+    for row in rows:
+        measurement, resident_full_name, bed_name = row
+        measurement_dict = {
+            "id": measurement.id,
+            "residence_id": measurement.residence_id,
+            "resident_id": measurement.resident_id,
+            "resident_full_name": resident_full_name,
+            "bed_name": bed_name,
+            "recorded_by": measurement.recorded_by,
+            "source": measurement.source,
+            "device_id": measurement.device_id,
+            "type": measurement.type,
+            "systolic": measurement.systolic,
+            "diastolic": measurement.diastolic,
+            "pulse_bpm": measurement.pulse_bpm,
+            "spo2": measurement.spo2,
+            "weight_kg": measurement.weight_kg,
+            "temperature_c": measurement.temperature_c,
+            "taken_at": measurement.taken_at,
+            "created_at": measurement.created_at,
+            "updated_at": measurement.updated_at,
+            "deleted_at": measurement.deleted_at
+        }
+        measurements.append(MeasurementOut(**measurement_dict))
+    
+    return measurements
+
+# -------------------- ENDPOINTS GENÉRICOS --------------------
+
 @router.get("/{measurement_id}", response_model=MeasurementOut)
 async def get_measurement(
     measurement_id: str,
@@ -585,3 +766,5 @@ async def get_measurement_history(
     )
 
     return [dict(row._mapping) for row in result.fetchall()]
+
+
