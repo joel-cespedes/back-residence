@@ -196,7 +196,11 @@ class TaskApplicationOut(BaseModel):
         id (str): Identificador único de la aplicación
         residence_id (str): ID de la residencia a la que pertenece
         resident_id (str): ID del residente al que se aplica
+        resident_full_name (Optional[str]): Nombre completo del residente
         task_template_id (str): ID de la plantilla utilizada
+        task_template_name (Optional[str]): Nombre de la plantilla de tarea
+        task_category_id (Optional[str]): ID de la categoría de la tarea
+        task_category_name (Optional[str]): Nombre de la categoría de la tarea
         applied_by_info (Optional[Dict[str, Any]]): Información del usuario que aplicó la tarea
         applied_at (datetime): Fecha de aplicación de la tarea
         selected_status_index (Optional[int]): Índice del estado seleccionado
@@ -205,12 +209,16 @@ class TaskApplicationOut(BaseModel):
         updated_at (datetime): Fecha de última actualización
         deleted_at (Optional[datetime]): Fecha de eliminación (soft delete)
     """
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra='allow')
 
     id: str
     residence_id: str
     resident_id: str
+    resident_full_name: Optional[str] = None
     task_template_id: str
+    task_template_name: Optional[str] = None
+    task_category_id: Optional[str] = None
+    task_category_name: Optional[str] = None
     applied_by_info: Optional[Dict[str, Any]] = None
     applied_at: datetime
     selected_status_index: Optional[int] = None

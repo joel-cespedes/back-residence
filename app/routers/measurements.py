@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status, Header, Query
-from sqlalchemy import select, update, func, and_
+from sqlalchemy import select, update, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import get_db, get_current_user
@@ -394,6 +394,130 @@ async def delete_measurement(
     await db.commit()
 
 # -------------------- Additional Endpoints --------------------
+
+@router.get("/residents/{resident_id}/measurements", response_model=PaginatedResponse[MeasurementOut])
+async def get_measurements_by_resident(
+    resident_id: str,
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+    pagination: PaginationParams = Depends(),
+    residence_id: str | None = Query(None, description="Filter by residence ID"),
+    type: str | None = Query(None, description="Filter by measurement type: bp|spo2|weight|temperature"),
+    time_filter: str = Query("all", description="Time filter: 7d|15d|30d|1y|all"),
+) -> PaginatedResponse[MeasurementOut]:
+    """
+    Get measurements for a specific resident with time filters.
+    
+    Time filters:
+    - 7d: Last 7 days
+    - 15d: Last 15 days  
+    - 30d: Last 30 days
+    - 1y: Last year
+    - all: All measurements
+    """
+    from datetime import datetime, timedelta
+    
+    # Validate time filter
+    valid_filters = ["7d", "15d", "30d", "1y", "all"]
+    if time_filter not in valid_filters:
+        raise HTTPException(status_code=400, detail=f"Invalid time_filter. Must be one of: {valid_filters}")
+    
+    # Apply residence context
+    rid = await apply_residence_context_or_infer(db, current, residence_id, resident_id=resident_id)
+    
+    # Validate resident exists and belongs to residence
+    resident_check = await db.scalar(
+        select(Resident.id).where(
+            Resident.id == resident_id,
+            Resident.residence_id == rid,
+            Resident.deleted_at.is_(None)
+        )
+    )
+    if not resident_check:
+        raise HTTPException(status_code=404, detail="Resident not found or not accessible")
+    
+    # Build base query with resident name
+    query = select(
+        Measurement,
+        Resident.full_name.label("resident_full_name")
+    ).join(
+        Resident, Measurement.resident_id == Resident.id
+    ).where(
+        Measurement.resident_id == resident_id,
+        Measurement.residence_id == rid,
+        Measurement.deleted_at.is_(None),
+        Resident.deleted_at.is_(None)
+    )
+    
+    # Apply time filter
+    if time_filter != "all":
+        now = datetime.utcnow()
+        time_deltas = {
+            "7d": timedelta(days=7),
+            "15d": timedelta(days=15),
+            "30d": timedelta(days=30),
+            "1y": timedelta(days=365)
+        }
+        date_from = now - time_deltas[time_filter]
+        query = query.where(Measurement.taken_at >= date_from)
+    
+    # Apply type filter
+    if type:
+        if type not in ["bp", "spo2", "weight", "temperature"]:
+            raise HTTPException(status_code=400, detail="Invalid type. Must be: bp|spo2|weight|temperature")
+        query = query.where(Measurement.type == type)
+    
+    # Order by most recent first
+    query = query.order_by(Measurement.taken_at.desc())
+    
+    # Custom pagination to handle the join
+    count_query = select(func.count()).select_from(query.subquery())
+    total = await db.scalar(count_query)
+    
+    offset = (pagination.page - 1) * pagination.size
+    result = await db.execute(query.offset(offset).limit(pagination.size))
+    
+    items = []
+    for row in result.all():
+        measurement, resident_full_name = row
+        
+        # Build item dictionary with resident name
+        item_dict = {
+            "id": measurement.id,
+            "residence_id": measurement.residence_id,
+            "resident_id": measurement.resident_id,
+            "resident_full_name": resident_full_name,
+            "recorded_by": measurement.recorded_by,
+            "source": measurement.source,
+            "device_id": measurement.device_id,
+            "type": measurement.type,
+            "systolic": measurement.systolic,
+            "diastolic": measurement.diastolic,
+            "pulse_bpm": measurement.pulse_bpm,
+            "spo2": measurement.spo2,
+            "weight_kg": measurement.weight_kg,
+            "temperature_c": measurement.temperature_c,
+            "taken_at": measurement.taken_at,
+            "created_at": measurement.created_at,
+            "updated_at": measurement.updated_at,
+            "deleted_at": measurement.deleted_at
+        }
+        items.append(item_dict)
+    
+    # Calculate pagination metadata
+    pages = (total + pagination.size - 1) // pagination.size
+    has_next = pagination.page < pages
+    has_prev = pagination.page > 1
+    
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        page=pagination.page,
+        size=pagination.size,
+        pages=pages,
+        has_next=has_next,
+        has_prev=has_prev
+    )
 
 @router.get("/{measurement_id}/history", response_model=list[dict])
 async def get_measurement_history(

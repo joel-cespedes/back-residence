@@ -87,6 +87,7 @@ class MeasurementOut(BaseModel):
         id (str): Identificador único de la medición
         residence_id (str): ID de la residencia a la que pertenece
         resident_id (str): ID del residente medido
+        resident_full_name (Optional[str]): Nombre completo del residente
         recorded_by (str): ID del usuario que registró la medición
         source (MeasurementSource): Fuente de la medición
         device_id (Optional[str]): ID del dispositivo utilizado
@@ -102,11 +103,12 @@ class MeasurementOut(BaseModel):
         updated_at (datetime): Fecha de última actualización
         deleted_at (Optional[datetime]): Fecha de eliminación (soft delete)
     """
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra='allow')
 
     id: str
     residence_id: str
     resident_id: str
+    resident_full_name: Optional[str] = None
     recorded_by: str
     source: MeasurementSource
     device_id: Optional[str] = None

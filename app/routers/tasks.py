@@ -891,3 +891,171 @@ async def delete_application(
                                                                                    updated_at=func.now())
     )
     await db.commit()
+
+# -------------------- Additional Endpoints --------------------
+
+@router.get("/residents/{resident_id}/task-applications", response_model=PaginatedResponse[TaskApplicationOut])
+async def get_task_applications_by_resident(
+    resident_id: str,
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+    pagination: PaginationParams = Depends(),
+    residence_id: str | None = Query(None, description="Filter by residence ID"),
+    category_id: str | None = Query(None, description="Filter by category ID"),
+    template_id: str | None = Query(None, description="Filter by template ID"),
+    time_filter: str = Query("all", description="Time filter: 7d|15d|30d|1y|all"),
+) -> PaginatedResponse[TaskApplicationOut]:
+    """
+    Get task applications for a specific resident with time filters and category information.
+    
+    Time filters:
+    - 7d: Last 7 days
+    - 15d: Last 15 days  
+    - 30d: Last 30 days
+    - 1y: Last year
+    - all: All applications
+    """
+    from datetime import datetime, timedelta
+    
+    # Validate time filter
+    valid_filters = ["7d", "15d", "30d", "1y", "all"]
+    if time_filter not in valid_filters:
+        raise HTTPException(status_code=400, detail=f"Invalid time_filter. Must be one of: {valid_filters}")
+    
+    # Apply residence context
+    rid = await _set_residence_context(db, current, residence_id)
+    
+    # Validate resident exists and belongs to residence
+    resident_check = await db.scalar(
+        select(Resident.id).where(
+            Resident.id == resident_id,
+            Resident.deleted_at.is_(None)
+        )
+    )
+    if not resident_check:
+        raise HTTPException(status_code=404, detail="Resident not found")
+    
+    # Get resident's residence_id if not provided
+    if not rid:
+        resident_residence = await db.scalar(
+            select(Resident.residence_id).where(Resident.id == resident_id)
+        )
+        rid = resident_residence
+    
+    # Validate user has access to this residence
+    if current["role"] != "superadmin":
+        user_residence_check = await db.scalar(
+            select(UserResidence.residence_id).where(
+                UserResidence.user_id == current["id"],
+                UserResidence.residence_id == rid
+            )
+        )
+        if not user_residence_check:
+            raise HTTPException(status_code=403, detail="Access denied to this resident's residence")
+    
+    # Build query with joins to get category and resident information
+    query = select(
+        TaskApplication,
+        TaskTemplate.name.label("task_template_name"),
+        TaskTemplate.task_category_id.label("task_category_id"),
+        TaskCategory.name.label("task_category_name"),
+        Resident.full_name.label("resident_full_name")
+    ).join(
+        TaskTemplate, TaskApplication.task_template_id == TaskTemplate.id
+    ).join(
+        TaskCategory, TaskTemplate.task_category_id == TaskCategory.id
+    ).join(
+        Resident, TaskApplication.resident_id == Resident.id
+    ).where(
+        TaskApplication.resident_id == resident_id,
+        TaskApplication.residence_id == rid,
+        TaskApplication.deleted_at.is_(None),
+        TaskTemplate.deleted_at.is_(None),
+        TaskCategory.deleted_at.is_(None),
+        Resident.deleted_at.is_(None)
+    )
+    
+    # Apply time filter
+    if time_filter != "all":
+        now = datetime.utcnow()
+        time_deltas = {
+            "7d": timedelta(days=7),
+            "15d": timedelta(days=15),
+            "30d": timedelta(days=30),
+            "1y": timedelta(days=365)
+        }
+        date_from = now - time_deltas[time_filter]
+        query = query.where(TaskApplication.applied_at >= date_from)
+    
+    # Apply category filter
+    if category_id:
+        query = query.where(TaskCategory.id == category_id)
+    
+    # Apply template filter
+    if template_id:
+        query = query.where(TaskTemplate.id == template_id)
+    
+    # Order by most recent first
+    query = query.order_by(TaskApplication.applied_at.desc())
+    
+    # Execute query with pagination
+    count_query = select(func.count()).select_from(query.subquery())
+    total = await db.scalar(count_query)
+    
+    offset = (pagination.page - 1) * pagination.size
+    result = await db.execute(query.offset(offset).limit(pagination.size))
+    
+    items = []
+    for row in result.all():
+        app, template_name, category_id_val, category_name, resident_full_name = row
+        
+        # Get applied_by_info
+        applied_by_info = None
+        if app.applied_by:
+            applier_result = await db.execute(
+                select(User.name, User.alias_encrypted).where(User.id == app.applied_by)
+            )
+            applier = applier_result.first()
+            if applier:
+                from app.security import decrypt_data
+                applier_alias = decrypt_data(applier[1]) if applier[1] else "N/A"
+                applied_by_info = {
+                    "id": app.applied_by,
+                    "name": applier[0],
+                    "alias": applier_alias
+                }
+        
+        # Build item dictionary
+        item_dict = {
+            "id": app.id,
+            "residence_id": app.residence_id,
+            "resident_id": app.resident_id,
+            "resident_full_name": resident_full_name,
+            "task_template_id": app.task_template_id,
+            "task_template_name": template_name,
+            "task_category_id": category_id_val,
+            "task_category_name": category_name,
+            "applied_by_info": applied_by_info,
+            "applied_at": app.applied_at,
+            "selected_status_index": app.selected_status_index,
+            "selected_status_text": app.selected_status_text,
+            "created_at": app.created_at,
+            "updated_at": app.updated_at,
+            "deleted_at": app.deleted_at
+        }
+        items.append(item_dict)
+    
+    # Calculate pagination metadata
+    pages = (total + pagination.size - 1) // pagination.size
+    has_next = pagination.page < pages
+    has_prev = pagination.page > 1
+    
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        page=pagination.page,
+        size=pagination.size,
+        pages=pages,
+        has_next=has_next,
+        has_prev=has_prev
+    )
