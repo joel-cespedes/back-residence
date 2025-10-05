@@ -233,7 +233,52 @@ class TaskApplicationBatchRequest(BaseModel):
     residence_id: str
     resident_ids: List[str]
     task_template_ids: List[str]
-    task_statuses: Dict[str, str]  # task_template_id -> status_text
+    task_statuses: Optional[Dict[str, str]] = None  # Opcional: task_template_id -> status_text
+
+
+class TaskApplicationDailySummary(BaseModel):
+    """Esquema para resumen diario de aplicaciones de tareas por residente"""
+    resident_id: str
+    resident_full_name: str
+    bed_name: Optional[str] = None
+    date: str  # YYYY-MM-DD
+    task_count: int
+    task_types: List[str]
+    first_application_time: str
+    last_application_time: str
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TaskApplicationDetail(BaseModel):
+    """Esquema para detalle de aplicación de tarea"""
+    id: str
+    task_template_id: str
+    task_name: str
+    task_category: str
+    status: Optional[str] = None
+    assigned_at: datetime
+    assigned_by_id: str
+    assigned_by_name: str
+    assigned_by_role: str
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TaskApplicationResidentDay(BaseModel):
+    """Esquema para aplicaciones de un residente en un día específico"""
+    resident_id: str
+    resident_full_name: str
+    bed_name: Optional[str] = None
+    date: str  # YYYY-MM-DD
+    applications: List[TaskApplicationDetail]
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserAssigner(BaseModel):
+    """Esquema para usuarios que pueden asignar tareas"""
+    id: str
+    full_name: str
+    role: str
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TaskApplicationBatchResponse(BaseModel):

@@ -6,17 +6,19 @@ from sqlalchemy import select, update, func, and_, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
 import uuid
+from typing import List, Optional
 
 from app.deps import get_db, get_current_user
 from app.models import (
     TaskCategory, TaskTemplate, TaskApplication,
-    Resident, UserResidence, Residence, User
+    Resident, UserResidence, Residence, User, Bed
 )
 from app.schemas import (
     TaskCategoryCreate, TaskCategoryUpdate, TaskCategoryOut,
     TaskTemplateCreate, TaskTemplateUpdate, TaskTemplateOut,
     TaskApplicationCreate, TaskApplicationUpdate, TaskApplicationOut,
     TaskApplicationBatchRequest, TaskApplicationBatchResponse,
+    TaskApplicationDailySummary, TaskApplicationDetail, TaskApplicationResidentDay, UserAssigner,
     PaginationParams, PaginatedResponse, FilterParams
 )
 from app.security import new_uuid, decrypt_data
@@ -1116,34 +1118,37 @@ async def create_task_applications_batch(
         # Crear aplicación por cada combinación resident × template
         for resident in valid_residents:
             for template in valid_templates:
-                # 1. Obtener el status seleccionado por el usuario
-                status_text = payload.task_statuses.get(template.id)
-                
-                # 2. Buscar en qué campo (status1-6) está ese texto
+                # 1. Obtener el status seleccionado por el usuario (si existe)
+                status_text = None
                 status_index = None
-                if template.status1 == status_text:
-                    status_index = 1
-                elif template.status2 == status_text:
-                    status_index = 2
-                elif template.status3 == status_text:
-                    status_index = 3
-                elif template.status4 == status_text:
-                    status_index = 4
-                elif template.status5 == status_text:
-                    status_index = 5
-                elif template.status6 == status_text:
-                    status_index = 6
                 
-                # 3. Crear la aplicación con el status seleccionado
+                if payload.task_statuses:
+                    status_text = payload.task_statuses.get(template.id)
+                    
+                    # 2. Buscar en qué campo (status1-6) está ese texto
+                    if status_text:
+                        if template.status1 == status_text:
+                            status_index = 1
+                        elif template.status2 == status_text:
+                            status_index = 2
+                        elif template.status3 == status_text:
+                            status_index = 3
+                        elif template.status4 == status_text:
+                            status_index = 4
+                        elif template.status5 == status_text:
+                            status_index = 5
+                        elif template.status6 == status_text:
+                            status_index = 6
+                
+                # 3. Crear la aplicación con el status seleccionado (o sin status)
                 application = TaskApplication(
                     id=str(uuid.uuid4()),
                     residence_id=payload.residence_id,
                     resident_id=resident.id,
                     task_template_id=template.id,
                     applied_by=current["id"],
-                    status=status_text,  # Status seleccionado por el usuario
-                    selected_status_index=status_index,  # Índice del campo (1-6)
-                    selected_status_text=status_text,    # Texto del status
+                    selected_status_index=status_index,  # Índice del campo (1-6) o None
+                    selected_status_text=status_text,    # Texto del status o None
                     applied_at=datetime.now(timezone.utc)
                 )
                 db.add(application)
@@ -1191,8 +1196,8 @@ async def create_task_applications_batch(
                 "task_category_name": category_name,
                 "applied_by": application.applied_by,
                 "applied_by_name": applied_by_name,
-                "status": application.status,
-                "comments": application.comments,
+                "status": application.selected_status_text,
+                "comments": None,  # Campo no existe en el modelo
                 "applied_at": application.applied_at,
                 "selected_status_index": application.selected_status_index,
                 "selected_status_text": application.selected_status_text,
@@ -1213,3 +1218,321 @@ async def create_task_applications_batch(
             status_code=500,
             detail=f"Error al crear aplicaciones en lote: {str(e)}"
         )
+
+
+# -------------------- ENDPOINTS DE HISTORIAL --------------------
+
+@router.get("/applications/daily-summary", response_model=PaginatedResponse[TaskApplicationDailySummary])
+async def get_task_applications_daily_summary(
+    residence_id: str = Query(..., description="ID de la residencia"),
+    date_from: Optional[str] = Query(None, description="Fecha inicio (YYYY-MM-DD)"),
+    date_to: Optional[str] = Query(None, description="Fecha fin (YYYY-MM-DD)"),
+    assigned_by_id: Optional[str] = Query(None, description="ID del profesional/gestor que asignó"),
+    search: Optional[str] = Query(None, description="Buscar por nombre de residente"),
+    page: int = Query(1, ge=1, description="Número de página"),
+    size: int = Query(20, ge=1, le=100, description="Tamaño de página"),
+    sort_by: Optional[str] = Query(None, description="Campo para ordenar"),
+    sort_order: Optional[str] = Query("desc", description="Orden: asc o desc"),
+    pagination: PaginationParams = Depends(),
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user)
+) -> PaginatedResponse[TaskApplicationDailySummary]:
+    """
+    Obtiene resumen diario de aplicaciones de tareas por residente.
+    
+    Agrupa las aplicaciones por residente y fecha, mostrando estadísticas
+    de cuántas tareas se aplicaron cada día.
+    
+    Si no se proporcionan date_from y date_to, retorna TODO el historial.
+    """
+    # Validar formato de fechas solo si se proporcionan
+    start_date = None
+    end_date = None
+    
+    if date_from:
+        try:
+            start_date = datetime.strptime(date_from, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="date_from debe estar en formato YYYY-MM-DD")
+    
+    if date_to:
+        try:
+            end_date = datetime.strptime(date_to, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="date_to debe estar en formato YYYY-MM-DD")
+    
+    # Construir query base con JOINs
+    query = select(
+        Resident.id.label("resident_id"),
+        Resident.full_name.label("resident_full_name"),
+        Bed.name.label("bed_name"),
+        func.date(TaskApplication.applied_at).label("date"),
+        func.count(TaskApplication.id).label("task_count"),
+        func.array_agg(func.distinct(TaskTemplate.name)).label("task_types"),
+        func.min(func.to_char(TaskApplication.applied_at, 'HH24:MI:SS')).label("first_application_time"),
+        func.max(func.to_char(TaskApplication.applied_at, 'HH24:MI:SS')).label("last_application_time")
+    ).select_from(
+        TaskApplication.__table__
+        .join(Resident.__table__, TaskApplication.resident_id == Resident.id)
+        .join(Bed.__table__, Resident.bed_id == Bed.id, isouter=True)
+        .join(TaskTemplate.__table__, TaskApplication.task_template_id == TaskTemplate.id)
+    ).where(
+        TaskApplication.residence_id == residence_id,
+        TaskApplication.deleted_at.is_(None),
+        Resident.deleted_at.is_(None)
+    )
+    
+    # Aplicar filtros de fecha solo si se proporcionan
+    if start_date:
+        query = query.where(func.date(TaskApplication.applied_at) >= start_date)
+    
+    if end_date:
+        query = query.where(func.date(TaskApplication.applied_at) <= end_date)
+    
+    # Filtrar por assigned_by_id si se proporciona
+    if assigned_by_id:
+        query = query.where(TaskApplication.applied_by == assigned_by_id)
+    
+    # Filtrar por búsqueda de nombre de residente
+    if search:
+        search_term = f"%{search}%"
+        query = query.where(Resident.full_name.ilike(search_term))
+    
+    # Agrupar y ordenar
+    query = query.group_by(
+        Resident.id,
+        Resident.full_name,
+        Bed.name,
+        func.date(TaskApplication.applied_at)
+    )
+    
+    # Aplicar ordenamiento
+    if sort_by == "resident_name":
+        if sort_order == "asc":
+            query = query.order_by(Resident.full_name.asc(), func.date(TaskApplication.applied_at).desc())
+        else:
+            query = query.order_by(Resident.full_name.desc(), func.date(TaskApplication.applied_at).desc())
+    elif sort_by == "task_count":
+        if sort_order == "asc":
+            query = query.order_by(func.count(TaskApplication.id).asc(), func.date(TaskApplication.applied_at).desc())
+        else:
+            query = query.order_by(func.count(TaskApplication.id).desc(), func.date(TaskApplication.applied_at).desc())
+    else:
+        # Ordenamiento por defecto: fecha DESC, luego nombre ASC
+        query = query.order_by(
+            func.date(TaskApplication.applied_at).desc(),
+            Resident.full_name.asc()
+        )
+    
+    # Usar parámetros de paginación directos en lugar de PaginationParams
+    offset = (page - 1) * size
+    query = query.offset(offset).limit(size)
+    
+    # Ejecutar query
+    result = await db.execute(query)
+    rows = result.all()
+    
+    # Contar total para paginación
+    count_query = select(func.count()).select_from(
+        TaskApplication.__table__
+        .join(Resident.__table__, TaskApplication.resident_id == Resident.id)
+        .join(TaskTemplate.__table__, TaskApplication.task_template_id == TaskTemplate.id)
+    ).where(
+        TaskApplication.residence_id == residence_id,
+        TaskApplication.deleted_at.is_(None),
+        Resident.deleted_at.is_(None)
+    )
+    
+    # Aplicar los mismos filtros al count
+    if start_date:
+        count_query = count_query.where(func.date(TaskApplication.applied_at) >= start_date)
+    
+    if end_date:
+        count_query = count_query.where(func.date(TaskApplication.applied_at) <= end_date)
+    
+    if assigned_by_id:
+        count_query = count_query.where(TaskApplication.applied_by == assigned_by_id)
+    
+    if search:
+        search_term = f"%{search}%"
+        count_query = count_query.where(Resident.full_name.ilike(search_term))
+    
+    count_query = count_query.group_by(
+        Resident.id,
+        func.date(TaskApplication.applied_at)
+    )
+    
+    count_result = await db.execute(count_query)
+    total = len(count_result.all())
+    
+    # Convertir a objetos TaskApplicationDailySummary
+    items = []
+    for row in rows:
+        summary_dict = {
+            "resident_id": str(row.resident_id),
+            "resident_full_name": row.resident_full_name,
+            "bed_name": row.bed_name,
+            "date": str(row.date),
+            "task_count": row.task_count,
+            "task_types": row.task_types or [],
+            "first_application_time": row.first_application_time,
+            "last_application_time": row.last_application_time
+        }
+        items.append(TaskApplicationDailySummary(**summary_dict))
+    
+    # Calcular metadatos de paginación
+    pages = (total + size - 1) // size
+    has_next = page < pages
+    has_prev = page > 1
+    
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        page=page,
+        size=size,
+        pages=pages,
+        has_next=has_next,
+        has_prev=has_prev
+    )
+
+
+@router.get("/applications/resident/{resident_id}/date/{date}", response_model=TaskApplicationResidentDay)
+async def get_task_applications_by_resident_date(
+    resident_id: str,
+    date: str,
+    assigned_by_id: Optional[str] = Query(None, description="ID del profesional/gestor que asignó las tareas"),
+    residence_id: str = Query(..., description="ID de la residencia"),
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user)
+) -> TaskApplicationResidentDay:
+    """
+    Obtiene todas las aplicaciones de tareas de un residente en una fecha específica.
+    
+    Muestra el detalle completo de todas las tareas asignadas al residente
+    en el día especificado, ordenadas por hora de asignación.
+    
+    Si assigned_by_id está presente, solo retorna las tareas creadas/asignadas
+    por ese profesional o gestor específico.
+    
+    Si assigned_by_id es None, retorna todas las tareas de ese día.
+    """
+    # Validar formato de fecha
+    try:
+        target_date = datetime.strptime(date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="La fecha debe estar en formato YYYY-MM-DD")
+    
+    # Construir query con JOINs para obtener datos completos
+    query = select(
+        TaskApplication,
+        Resident.full_name.label("resident_full_name"),
+        Bed.name.label("bed_name"),
+        TaskTemplate.name.label("task_name"),
+        TaskCategory.name.label("task_category"),
+        User.name.label("assigned_by_name"),
+        User.role.label("assigned_by_role")
+    ).join(
+        Resident, TaskApplication.resident_id == Resident.id
+    ).join(
+        Bed, Resident.bed_id == Bed.id, isouter=True
+    ).join(
+        TaskTemplate, TaskApplication.task_template_id == TaskTemplate.id
+    ).join(
+        TaskCategory, TaskTemplate.task_category_id == TaskCategory.id
+    ).join(
+        User, TaskApplication.applied_by == User.id
+    ).where(
+        TaskApplication.residence_id == residence_id,
+        TaskApplication.resident_id == resident_id,
+        func.date(TaskApplication.applied_at) == target_date,
+        TaskApplication.deleted_at.is_(None),
+        Resident.deleted_at.is_(None),
+        User.deleted_at.is_(None)
+    )
+    
+    # Filtrar por assigned_by_id si se proporciona
+    if assigned_by_id:
+        query = query.where(TaskApplication.applied_by == assigned_by_id)
+    
+    query = query.order_by(TaskApplication.applied_at.asc())
+    
+    # Ejecutar query
+    result = await db.execute(query)
+    rows = result.all()
+    
+    if not rows:
+        raise HTTPException(status_code=404, detail="No se encontraron aplicaciones para este residente en la fecha especificada")
+    
+    # Obtener información del residente del primer resultado
+    first_row = rows[0]
+    resident_name = first_row.resident_full_name
+    bed_name = first_row.bed_name
+    
+    # Convertir aplicaciones a TaskApplicationDetail
+    applications = []
+    for row in rows:
+        application, _, _, task_name, task_category, assigned_by_name, assigned_by_role = row
+        app_dict = {
+            "id": application.id,
+            "task_template_id": application.task_template_id,
+            "task_name": task_name,
+            "task_category": task_category,
+            "status": application.selected_status_text,
+            "assigned_at": application.applied_at,
+            "assigned_by_id": application.applied_by,
+            "assigned_by_name": assigned_by_name,
+            "assigned_by_role": assigned_by_role
+        }
+        applications.append(TaskApplicationDetail(**app_dict))
+    
+    # Crear respuesta
+    response_dict = {
+        "resident_id": resident_id,
+        "resident_full_name": resident_name,
+        "bed_name": bed_name,
+        "date": date,
+        "applications": applications
+    }
+    
+    return TaskApplicationResidentDay(**response_dict)
+
+
+@router.get("/users/assigners", response_model=List[UserAssigner])
+async def get_user_assigners(
+    residence_id: str = Query(..., description="ID de la residencia"),
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user)
+) -> List[UserAssigner]:
+    """
+    Obtiene lista de usuarios que pueden asignar tareas en la residencia.
+    
+    Retorna profesionales y gestores que tienen permisos para asignar tareas.
+    """
+    # Query para obtener usuarios con roles que pueden asignar tareas
+    query = select(
+        User.id,
+        User.name,
+        User.role
+    ).join(
+        UserResidence, User.id == UserResidence.user_id
+    ).where(
+        UserResidence.residence_id == residence_id,
+        User.role.in_(["professional", "manager", "superadmin"]),
+        User.deleted_at.is_(None),
+        UserResidence.deleted_at.is_(None)
+    ).order_by(User.name.asc())
+    
+    result = await db.execute(query)
+    rows = result.all()
+    
+    # Convertir a UserAssigner
+    assigners = []
+    for row in rows:
+        assigner_dict = {
+            "id": row.id,
+            "full_name": row.name,
+            "role": row.role
+        }
+        assigners.append(UserAssigner(**assigner_dict))
+    
+    return assigners

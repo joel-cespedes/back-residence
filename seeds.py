@@ -700,6 +700,98 @@ class DatabaseSeeder:
 
         await self.session.flush()
 
+    async def create_task_applications(self, residents: List[Resident], templates: List[TaskTemplate], 
+                                     users: List[User], residences: List[Residence], days: int = 7):
+        """Crea aplicaciones de tareas realistas por profesionales/gestores asignados a residencias"""
+        print(f"📋 Creando aplicaciones de tareas para los últimos {days} días...")
+        
+        applications = []
+        base_date = datetime.now(timezone.utc) - timedelta(days=days)
+        
+        # Crear un diccionario de usuarios por residencia para acceso rápido
+        user_residences = {}
+        for residence in residences:
+            residence_users = []
+            for user in users:
+                # Verificar si el usuario está asignado a esta residencia
+                user_res_check = await self.session.execute(
+                    text("SELECT 1 FROM user_residence WHERE user_id = :user_id AND residence_id = :residence_id"),
+                    {"user_id": user.id, "residence_id": residence.id}
+                )
+                if user_res_check.scalar():
+                    residence_users.append(user)
+            user_residences[residence.id] = residence_users
+        
+        # Crear aplicaciones para cada residente
+        for resident in residents:
+            residence_id = resident.residence_id
+            residence_users = user_residences.get(residence_id, [])
+            
+            if not residence_users:
+                continue  # Skip si no hay usuarios asignados a esta residencia
+            
+            # Filtrar templates de esta residencia
+            residence_templates = [t for t in templates if t.residence_id == residence_id]
+            
+            if not residence_templates:
+                continue  # Skip si no hay templates para esta residencia
+            
+            # Crear 1-3 aplicaciones por día para este residente
+            for day_offset in range(days):
+                current_date = base_date + timedelta(days=day_offset)
+                
+                # Número de aplicaciones este día (1-3)
+                num_applications = random.randint(1, 3)
+                
+                for _ in range(num_applications):
+                    # Seleccionar usuario aleatorio de los asignados a esta residencia
+                    assigned_user = random.choice(residence_users)
+                    
+                    # Seleccionar template aleatorio de esta residencia
+                    template = random.choice(residence_templates)
+                    
+                    # Crear hora aleatoria del día
+                    hour = random.randint(8, 18)  # Entre 8 AM y 6 PM
+                    minute = random.randint(0, 59)
+                    applied_at = current_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
+                    
+                    # Determinar si esta aplicación tiene status (50% probabilidad)
+                    status_text = None
+                    status_index = None
+                    
+                    if random.random() < 0.5 and template.status1:  # 50% chance de tener status
+                        # Seleccionar un status aleatorio de los disponibles
+                        available_statuses = []
+                        if template.status1: available_statuses.append((1, template.status1))
+                        if template.status2: available_statuses.append((2, template.status2))
+                        if template.status3: available_statuses.append((3, template.status3))
+                        if template.status4: available_statuses.append((4, template.status4))
+                        if template.status5: available_statuses.append((5, template.status5))
+                        if template.status6: available_statuses.append((6, template.status6))
+                        
+                        if available_statuses:
+                            status_index, status_text = random.choice(available_statuses)
+                    
+                    # Crear la aplicación
+                    application = TaskApplication(
+                        id=str(uuid.uuid4()),
+                        residence_id=residence_id,
+                        resident_id=resident.id,
+                        task_template_id=template.id,
+                        applied_by=assigned_user.id,  # Usuario asignado a la residencia
+                        applied_at=applied_at,
+                        selected_status_index=status_index,
+                        selected_status_text=status_text,
+                        created_at=applied_at,
+                        updated_at=applied_at
+                    )
+                    
+                    self.session.add(application)
+                    applications.append(application)
+        
+        print(f"✅ {len(applications)} aplicaciones de tareas creadas")
+        return applications
+
     async def seed_minimal(self):
         """Seeds mínimos para desarrollo básico"""
         print("🌱 Creando datos mínimos...")
@@ -787,6 +879,9 @@ class DatabaseSeeder:
         # 10. Mediciones de los últimos 7 días
         measurements = await self.create_measurements(residents, devices, all_users, days=7)
         
+        # 11. Aplicaciones de tareas realistas
+        task_applications = await self.create_task_applications(residents, templates, managers + professionals, residences)
+        
         await self.session.commit()
         print("✅ Datos de desarrollo creados")
 
@@ -847,6 +942,9 @@ class DatabaseSeeder:
         # 10. Mediciones de los últimos 7 días
         measurements = await self.create_measurements(residents, devices, all_users, days=7)
         
+        # 11. Aplicaciones de tareas realistas
+        task_applications = await self.create_task_applications(residents, templates, managers + professionals, residences)
+        
         await self.session.commit()
         print("✅ Datos completos creados")
 
@@ -865,6 +963,7 @@ class DatabaseSeeder:
             ('Residentes', 'SELECT COUNT(*) FROM resident'),
             ('Categorías de tareas', 'SELECT COUNT(*) FROM task_category'),
             ('Plantillas de tareas', 'SELECT COUNT(*) FROM task_template'),
+            ('Aplicaciones de tareas', 'SELECT COUNT(*) FROM task_application'),
             ('Dispositivos', 'SELECT COUNT(*) FROM device'),
             ('Mediciones', 'SELECT COUNT(*) FROM measurement'),
             ('Etiquetas', 'SELECT COUNT(*) FROM tag'),

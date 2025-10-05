@@ -27,7 +27,7 @@ from .residence import ResidenceCreate, ResidenceUpdate, ResidenceOut
 from .location import FloorCreate, FloorUpdate, FloorOut, RoomCreate, RoomUpdate, RoomOut, BedCreate, BedUpdate, BedOut
 from .resident import ResidentCreate, ResidentUpdate, ResidentChangeBed, ResidentOut
 from .device import DeviceCreate, DeviceUpdate, DeviceOut
-from .task import TaskCategoryCreate, TaskCategoryUpdate, TaskCategoryOut, TaskTemplateCreate, TaskTemplateUpdate, TaskTemplateOut, TaskApplicationCreate, TaskApplicationUpdate, TaskApplicationOut, TaskApplicationBatchRequest, TaskApplicationBatchResponse
+from .task import TaskCategoryCreate, TaskCategoryUpdate, TaskCategoryOut, TaskTemplateCreate, TaskTemplateUpdate, TaskTemplateOut, TaskApplicationCreate, TaskApplicationUpdate, TaskApplicationOut, TaskApplicationBatchRequest, TaskApplicationBatchResponse, TaskApplicationDailySummary, TaskApplicationDetail, TaskApplicationResidentDay, UserAssigner
 from .measurement import MeasurementCreate, MeasurementUpdate, MeasurementOut, MeasurementDailySummary
 from .tag import TagCreate, TagUpdate, TagOut, ResidentTagAssign
 from .dashboard import DashboardMetric, MonthlyData, YearComparison, ResidentStats, MeasurementStats, TaskStats, TaskCategoryWithCount, MonthlyResidentData, NewResidentStats, DeviceStats, DashboardData
@@ -114,6 +114,10 @@ __all__ = [
     "TaskApplicationOut",
     "TaskApplicationBatchRequest",
     "TaskApplicationBatchResponse",
+    "TaskApplicationDailySummary",
+    "TaskApplicationDetail",
+    "TaskApplicationResidentDay",
+    "UserAssigner",
 
     # Mediciones
     "MeasurementCreate",
