@@ -701,7 +701,7 @@ class DatabaseSeeder:
         await self.session.flush()
 
     async def create_task_applications(self, residents: List[Resident], templates: List[TaskTemplate], 
-                                     users: List[User], residences: List[Residence], days: int = 7):
+                                     users: List[User], residences: List[Residence], days: int = 30):
         """Crea aplicaciones de tareas realistas por profesionales/gestores asignados a residencias"""
         print(f"📋 Creando aplicaciones de tareas para los últimos {days} días...")
         
@@ -722,13 +722,19 @@ class DatabaseSeeder:
                     residence_users.append(user)
             user_residences[residence.id] = residence_users
         
-        # Crear aplicaciones para cada residente
-        for resident in residents:
-            residence_id = resident.residence_id
+        # Crear aplicaciones por residencia
+        for residence in residences:
+            residence_id = residence.id
             residence_users = user_residences.get(residence_id, [])
             
             if not residence_users:
                 continue  # Skip si no hay usuarios asignados a esta residencia
+            
+            # Filtrar residentes de esta residencia
+            residence_residents = [r for r in residents if r.residence_id == residence_id]
+            
+            if not residence_residents:
+                continue  # Skip si no hay residentes en esta residencia
             
             # Filtrar templates de esta residencia
             residence_templates = [t for t in templates if t.residence_id == residence_id]
@@ -736,30 +742,33 @@ class DatabaseSeeder:
             if not residence_templates:
                 continue  # Skip si no hay templates para esta residencia
             
-            # Crear 1-3 aplicaciones por día para este residente
+            # Crear aplicaciones para cada día del período
             for day_offset in range(days):
                 current_date = base_date + timedelta(days=day_offset)
                 
-                # Número de aplicaciones este día (1-3)
-                num_applications = random.randint(1, 3)
+                # Número de aplicaciones este día (2, 3 o 5)
+                num_applications = random.choice([2, 3, 5])
                 
-                for _ in range(num_applications):
+                # Seleccionar residentes aleatorios para este día (pueden repetirse)
+                selected_residents = random.choices(residence_residents, k=num_applications)
+                
+                for resident in selected_residents:
                     # Seleccionar usuario aleatorio de los asignados a esta residencia
                     assigned_user = random.choice(residence_users)
                     
                     # Seleccionar template aleatorio de esta residencia
                     template = random.choice(residence_templates)
                     
-                    # Crear hora aleatoria del día
-                    hour = random.randint(8, 18)  # Entre 8 AM y 6 PM
+                    # Crear hora aleatoria del día (distribuir mejor las horas)
+                    hour = random.choice([8, 9, 10, 11, 14, 15, 16, 17])  # Horarios más realistas
                     minute = random.randint(0, 59)
                     applied_at = current_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
                     
-                    # Determinar si esta aplicación tiene status (50% probabilidad)
+                    # Determinar si esta aplicación tiene status (60% probabilidad)
                     status_text = None
                     status_index = None
                     
-                    if random.random() < 0.5 and template.status1:  # 50% chance de tener status
+                    if random.random() < 0.6 and template.status1:  # 60% chance de tener status
                         # Seleccionar un status aleatorio de los disponibles
                         available_statuses = []
                         if template.status1: available_statuses.append((1, template.status1))
@@ -879,8 +888,8 @@ class DatabaseSeeder:
         # 10. Mediciones de los últimos 7 días
         measurements = await self.create_measurements(residents, devices, all_users, days=7)
         
-        # 11. Aplicaciones de tareas realistas
-        task_applications = await self.create_task_applications(residents, templates, managers + professionals, residences)
+        # 11. Aplicaciones de tareas realistas (último mes)
+        task_applications = await self.create_task_applications(residents, templates, managers + professionals, residences, days=30)
         
         await self.session.commit()
         print("✅ Datos de desarrollo creados")
@@ -942,8 +951,8 @@ class DatabaseSeeder:
         # 10. Mediciones de los últimos 7 días
         measurements = await self.create_measurements(residents, devices, all_users, days=7)
         
-        # 11. Aplicaciones de tareas realistas
-        task_applications = await self.create_task_applications(residents, templates, managers + professionals, residences)
+        # 11. Aplicaciones de tareas realistas (último mes)
+        task_applications = await self.create_task_applications(residents, templates, managers + professionals, residences, days=30)
         
         await self.session.commit()
         print("✅ Datos completos creados")

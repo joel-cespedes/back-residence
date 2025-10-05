@@ -19,9 +19,11 @@ from app.schemas import (
     TaskApplicationCreate, TaskApplicationUpdate, TaskApplicationOut,
     TaskApplicationBatchRequest, TaskApplicationBatchResponse,
     TaskApplicationDailySummary, TaskApplicationDetail, TaskApplicationResidentDay, UserAssigner,
+    VoiceParseRequest, VoiceParseResponse, VoiceApplicationRequest, VoiceApplicationResponse,
     PaginationParams, PaginatedResponse, FilterParams
 )
 from app.security import new_uuid, decrypt_data
+from app.services.voice_service import VoiceService
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -1536,3 +1538,214 @@ async def get_user_assigners(
         assigners.append(UserAssigner(**assigner_dict))
     
     return assigners
+
+
+# -------------------- VOICE RECOGNITION ENDPOINTS --------------------
+
+@router.post("/applications/parse-voice", response_model=VoiceParseResponse)
+async def parse_voice_transcript(
+    payload: VoiceParseRequest,
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user)
+) -> VoiceParseResponse:
+    """
+    Parsea un transcript de voz usando Dialogflow y encuentra residente/tarea con fuzzy matching
+    """
+    try:
+        # Validar que el usuario tenga acceso a la residencia
+        if current["role"] != "superadmin":
+            user_residence_check = await db.scalar(
+                select(UserResidence.residence_id).where(
+                    UserResidence.user_id == current["id"],
+                    UserResidence.residence_id == payload.residence_id
+                )
+            )
+            if not user_residence_check:
+                return VoiceParseResponse(
+                    success=False,
+                    error="No tienes acceso a esta residencia"
+                )
+        
+        # Inicializar servicio de voz
+        voice_service = VoiceService()
+        
+        # Parsear transcript con Dialogflow
+        dialogflow_result = await voice_service.parse_transcript(payload.transcript)
+        
+        resident_name = dialogflow_result.get("resident_name", "")
+        task_name = dialogflow_result.get("task_name", "")
+        status = dialogflow_result.get("status", "")
+        
+        # Validar que se extrajeron las entidades requeridas
+        if not resident_name:
+            return VoiceParseResponse(
+                success=False,
+                error="No se pudo identificar el nombre del residente en el audio"
+            )
+        
+        if not task_name:
+            return VoiceParseResponse(
+                success=False,
+                error="No se pudo identificar el nombre de la tarea en el audio"
+            )
+        
+        # Buscar residente con fuzzy matching
+        resident_match = await voice_service.find_resident_by_name(
+            resident_name, payload.residence_id, db
+        )
+        
+        if not resident_match:
+            return VoiceParseResponse(
+                success=False,
+                error=f"No se encontró residente con el nombre '{resident_name}' en esta residencia"
+            )
+        
+        resident_id, matched_resident_name = resident_match
+        
+        # Buscar tarea con fuzzy matching
+        task_match = await voice_service.find_task_by_name(
+            task_name, payload.residence_id, db
+        )
+        
+        if not task_match:
+            return VoiceParseResponse(
+                success=False,
+                error=f"No se encontró tarea con el nombre '{task_name}' en esta residencia"
+            )
+        
+        task_id, matched_task_name = task_match
+        
+        # Validar status si se proporcionó
+        if status:
+            status_valid = await voice_service.validate_task_status(task_id, status, db)
+            if not status_valid:
+                return VoiceParseResponse(
+                    success=False,
+                    error=f"La tarea '{matched_task_name}' no tiene el estado '{status}' disponible"
+                )
+        
+        # Verificar si la tarea tiene estados definidos
+        template_query = select(TaskTemplate).where(TaskTemplate.id == task_id)
+        template_result = await db.execute(template_query)
+        template = template_result.scalar_one()
+        
+        has_statuses = any([
+            template.status1, template.status2, template.status3,
+            template.status4, template.status5, template.status6
+        ])
+        
+        # Generar mensaje de confirmación
+        confirmation_message = voice_service.generate_confirmation_message(
+            matched_resident_name, matched_task_name, status, has_statuses
+        )
+        
+        return VoiceParseResponse(
+            success=True,
+            resident_id=resident_id,
+            resident_name=matched_resident_name,
+            task_id=task_id,
+            task_name=matched_task_name,
+            status=status if status else None,
+            confirmation_message=confirmation_message
+        )
+        
+    except Exception as e:
+        return VoiceParseResponse(
+            success=False,
+            error=f"Error al procesar el audio: {str(e)}"
+        )
+
+
+@router.post("/applications/voice", response_model=VoiceApplicationResponse)
+async def create_voice_application(
+    payload: VoiceApplicationRequest,
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user)
+) -> VoiceApplicationResponse:
+    """
+    Crea una aplicación de tarea basada en los datos parseados por voz
+    """
+    try:
+        # Validar que el usuario tenga acceso a la residencia
+        if current["role"] != "superadmin":
+            user_residence_check = await db.scalar(
+                select(UserResidence.residence_id).where(
+                    UserResidence.user_id == current["id"],
+                    UserResidence.residence_id == payload.residence_id
+                )
+            )
+            if not user_residence_check:
+                return VoiceApplicationResponse(
+                    success=False,
+                    error="No tienes acceso a esta residencia"
+                )
+        
+        # Validar que el residente existe y pertenece a la residencia
+        resident_query = select(Resident).where(
+            Resident.id == payload.resident_id,
+            Resident.residence_id == payload.residence_id,
+            Resident.deleted_at.is_(None)
+        )
+        resident_result = await db.execute(resident_query)
+        resident = resident_result.scalar_one_or_none()
+        
+        if not resident:
+            return VoiceApplicationResponse(
+                success=False,
+                error="Residente no encontrado o no pertenece a esta residencia"
+            )
+        
+        # Validar que la tarea existe y pertenece a la residencia
+        task_query = select(TaskTemplate).where(
+            TaskTemplate.id == payload.task_id,
+            TaskTemplate.residence_id == payload.residence_id,
+            TaskTemplate.deleted_at.is_(None)
+        )
+        task_result = await db.execute(task_query)
+        task_template = task_result.scalar_one_or_none()
+        
+        if not task_template:
+            return VoiceApplicationResponse(
+                success=False,
+                error="Tarea no encontrada o no pertenece a esta residencia"
+            )
+        
+        # Determinar status_index si se proporcionó status
+        status_index = None
+        if payload.status:
+            if task_template.status1 == payload.status: status_index = 1
+            elif task_template.status2 == payload.status: status_index = 2
+            elif task_template.status3 == payload.status: status_index = 3
+            elif task_template.status4 == payload.status: status_index = 4
+            elif task_template.status5 == payload.status: status_index = 5
+            elif task_template.status6 == payload.status: status_index = 6
+        
+        # Crear la aplicación de tarea
+        application = TaskApplication(
+            id=str(uuid.uuid4()),
+            residence_id=payload.residence_id,
+            resident_id=payload.resident_id,
+            task_template_id=payload.task_id,
+            applied_by=current["id"],
+            applied_at=datetime.now(timezone.utc),
+            selected_status_index=status_index,
+            selected_status_text=payload.status,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
+        )
+        
+        db.add(application)
+        await db.commit()
+        await db.refresh(application)
+        
+        return VoiceApplicationResponse(
+            success=True,
+            application_id=application.id
+        )
+        
+    except Exception as e:
+        await db.rollback()
+        return VoiceApplicationResponse(
+            success=False,
+            error=f"Error al crear la aplicación: {str(e)}"
+        )

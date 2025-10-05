@@ -281,6 +281,41 @@ class UserAssigner(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+# -------------------- VOICE RECOGNITION SCHEMAS --------------------
+
+class VoiceParseRequest(BaseModel):
+    """Esquema para solicitud de parseo de voz"""
+    transcript: str
+    residence_id: str
+
+
+class VoiceParseResponse(BaseModel):
+    """Esquema para respuesta de parseo de voz exitoso"""
+    success: bool
+    resident_id: Optional[str] = None
+    resident_name: Optional[str] = None
+    task_id: Optional[str] = None
+    task_name: Optional[str] = None
+    status: Optional[str] = None
+    confirmation_message: Optional[str] = None
+    error: Optional[str] = None
+
+
+class VoiceApplicationRequest(BaseModel):
+    """Esquema para solicitud de aplicación de tarea por voz"""
+    resident_id: str
+    task_id: str
+    status: Optional[str] = None
+    residence_id: str
+
+
+class VoiceApplicationResponse(BaseModel):
+    """Esquema para respuesta de aplicación de tarea por voz"""
+    success: bool
+    application_id: Optional[str] = None
+    error: Optional[str] = None
+
+
 class TaskApplicationBatchResponse(BaseModel):
     """Esquema para respuesta de aplicaciones de tareas en lote"""
     created_count: int
