@@ -679,15 +679,15 @@ class DatabaseSeeder:
         return measurements
 
     async def assign_users_to_residences(self, users: List[User], residences: List[Residence], superadmin_id: str = None):
-        """Asigna usuarios a residencias"""
+        """Asigna usuarios a residencias - cada usuario al 70% de las residencias"""
         print("🔗 Asignando usuarios a residencias...")
         
         for user in users:
             if user.role == "superadmin":
                 continue  # Superadmin no necesita asignaciones específicas
                 
-            # Cada usuario se asigna a 1-3 residencias
-            num_residences = random.randint(1, 3)
+            # Cada usuario se asigna al 70% de las residencias
+            num_residences = max(1, int(len(residences) * 0.7))
             assigned_residences = random.sample(residences, min(num_residences, len(residences)))
             
             for residence in assigned_residences:
@@ -843,20 +843,24 @@ class DatabaseSeeder:
             "admin@residencias.com", "+34 600 000 000"
         )
         
+        # Crear gestores con alias simples para testing
         managers = []
-        for i, name in enumerate(NOMBRES_USUARIOS["managers"][:4]):
+        manager_names = ["Carlos Gestor", "María Gestora", "José Gestor", "Ana Gestora"]
+        for i, name in enumerate(manager_names):
             manager = await self.create_user(
-                f"manager{i+1}", "manager123", "manager", name,
-                f"manager{i+1}@residencias.com", f"+34 600 00{i+1} 00{i+1}",
+                f"gestor{i+1}", "test123", "manager", name,
+                f"gestor{i+1}@residencias.com", f"+34 600 00{i+1} 00{i+1}",
                 superadmin.id  # Creado por el superadmin
             )
             managers.append(manager)
         
+        # Crear profesionales con alias simples para testing
         professionals = []
-        for i, name in enumerate(NOMBRES_USUARIOS["professionals"][:8]):
+        professional_names = ["Luis Profesional", "Carmen Profesional", "Pedro Profesional", "Laura Profesional"]
+        for i, name in enumerate(professional_names):
             prof = await self.create_user(
-                f"prof{i+1}", "prof123", "professional", name,
-                f"prof{i+1}@residencias.com", f"+34 700 00{i+1} 00{i+1}",
+                f"profesional{i+1}", "test123", "professional", name,
+                f"profesional{i+1}@residencias.com", f"+34 700 00{i+1} 00{i+1}",
                 superadmin.id  # Creado por el superadmin
             )
             professionals.append(prof)
@@ -904,22 +908,24 @@ class DatabaseSeeder:
             "admin@residencias.com", "+34 600 000 000"
         )
         
+        # Crear gestores con alias simples para testing
         managers = []
-        for i in range(12):
-            name = NOMBRES_USUARIOS["managers"][i % len(NOMBRES_USUARIOS["managers"])]
+        manager_names = ["Carlos Gestor", "María Gestora", "José Gestor", "Ana Gestora"]
+        for i, name in enumerate(manager_names):
             manager = await self.create_user(
-                f"manager{i+1}", "manager123", "manager", name,
-                f"manager{i+1}@residencias.com", f"+34 600 {i+100:03d} {i+100:03d}",
+                f"gestor{i+1}", "test123", "manager", name,
+                f"gestor{i+1}@residencias.com", f"+34 600 00{i+1} 00{i+1}",
                 superadmin.id  # Creado por el superadmin
             )
             managers.append(manager)
         
+        # Crear profesionales con alias simples para testing
         professionals = []
-        for i in range(30):
-            name = NOMBRES_USUARIOS["professionals"][i % len(NOMBRES_USUARIOS["professionals"])]
+        professional_names = ["Luis Profesional", "Carmen Profesional", "Pedro Profesional", "Laura Profesional"]
+        for i, name in enumerate(professional_names):
             prof = await self.create_user(
-                f"prof{i+1}", "prof123", "professional", name,
-                f"prof{i+1}@residencias.com", f"+34 700 {i+100:03d} {i+100:03d}",
+                f"profesional{i+1}", "test123", "professional", name,
+                f"profesional{i+1}@residencias.com", f"+34 700 00{i+1} 00{i+1}",
                 superadmin.id  # Creado por el superadmin
             )
             professionals.append(prof)
