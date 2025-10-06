@@ -8,3 +8,4 @@ bcrypt==4.2.0
 PyJWT==2.9.0
 python-multipart==0.0.9
 psycopg2-binary==2.9.9
+rapidfuzz==3.10.0
