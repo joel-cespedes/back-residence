@@ -1,14 +1,12 @@
 # app/services/voice_service.py
 """
-Servicio para manejo de reconocimiento de voz con Dialogflow y fuzzy matching
+Servicio para procesamiento de transcripciones de voz usando regex y fuzzy matching
 """
 
 import os
 import json
 from typing import Optional, Dict, Any, Tuple
 from rapidfuzz import fuzz, process
-from google.cloud import dialogflow
-from google.oauth2 import service_account
 
 from app.models import Resident, TaskTemplate
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,26 +14,10 @@ from sqlalchemy import select
 
 
 class VoiceService:
-    """Servicio para procesamiento de voz con Dialogflow"""
-    
+    """Servicio para procesamiento de voz usando regex y fuzzy matching"""
+
     def __init__(self):
-        self.project_id = os.getenv("DIALOGFLOW_PROJECT_ID", "residences-tasks-vxjv")
-        self.session_id = "voice-session"
-        # Buscar archivo de credenciales en la raíz del proyecto
-        self.credentials_path = os.getenv(
-            "GOOGLE_APPLICATION_CREDENTIALS",
-            "residences-voice-9241d3367fdf.json"
-        )
-        self._client = None
-    
-    def _get_dialogflow_client(self):
-        """Obtiene el cliente de Dialogflow con las credenciales"""
-        if self._client is None:
-            credentials = service_account.Credentials.from_service_account_file(
-                self.credentials_path
-            )
-            self._client = dialogflow.SessionsClient(credentials=credentials)
-        return self._client
+        pass
     
     async def parse_transcript(self, transcript: str) -> Dict[str, Any]:
         """
