@@ -289,15 +289,52 @@ class VoiceParseRequest(BaseModel):
     residence_id: str
 
 
+class ResidentOption(BaseModel):
+    """Opción de residente para selección cuando hay ambigüedad"""
+    id: str
+    full_name: str
+    room_name: Optional[str] = None
+    bed_number: Optional[str] = None
+
+
+class TaskOption(BaseModel):
+    """Opción de tarea para selección cuando hay ambigüedad"""
+    id: str
+    name: str
+
+
+class StatusOption(BaseModel):
+    """Opción de estado para selección cuando hay ambigüedad"""
+    value: str
+
+
 class VoiceParseResponse(BaseModel):
-    """Esquema para respuesta de parseo de voz exitoso"""
+    """
+    Respuesta del parseo de voz con Dialogflow y fuzzy matching
+
+    Casos de uso:
+    1. success=True:Match único encontrado, mostrar confirmation_message
+    2. success=False con resident_options: Usuario debe seleccionar residente
+    3. success=False con task_options: Usuario debe seleccionar tarea
+    4. success=False con status_options: Usuario debe seleccionar estado
+    5. success=False con error: Error general (sin opciones para seleccionar)
+    """
     success: bool
+
+    # Datos cuando hay match único (success=True)
     resident_id: Optional[str] = None
     resident_name: Optional[str] = None
     task_id: Optional[str] = None
     task_name: Optional[str] = None
     status: Optional[str] = None
     confirmation_message: Optional[str] = None
+
+    # Opciones cuando hay ambigüedad (success=False)
+    resident_options: Optional[list[ResidentOption]] = None
+    task_options: Optional[list[TaskOption]] = None
+    status_options: Optional[list[StatusOption]] = None
+
+    # Error general
     error: Optional[str] = None
 
 

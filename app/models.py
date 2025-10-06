@@ -40,6 +40,12 @@ measurement_source_enum = ENUM(
     create_type=False
 )
 
+resident_history_change_type_enum = ENUM(
+    'bed_assignment', 'bed_removal', 'status_change', 'residence_transfer',
+    name='resident_history_change_type_enum',
+    create_type=False
+)
+
 class User(Base):
     __tablename__ = "user"
 
@@ -709,6 +715,86 @@ class ResidentTag(Base):
         }
 
 
+class ResidentHistory(Base):
+    __tablename__ = "resident_history"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    resident_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False),
+        ForeignKey("resident.id", ondelete="CASCADE"),
+        nullable=False
+    )
+    residence_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False),
+        ForeignKey("residence.id", ondelete="RESTRICT"),
+        nullable=False
+    )
+
+    # Valores nuevos (después del cambio)
+    bed_id: Mapped[Optional[str]] = mapped_column(
+        UUID(as_uuid=False),
+        ForeignKey("bed.id", ondelete="SET NULL")
+    )
+    room_id: Mapped[Optional[str]] = mapped_column(
+        UUID(as_uuid=False),
+        ForeignKey("room.id", ondelete="SET NULL")
+    )
+    floor_id: Mapped[Optional[str]] = mapped_column(
+        UUID(as_uuid=False),
+        ForeignKey("floor.id", ondelete="SET NULL")
+    )
+    status: Mapped[str] = mapped_column(resident_status_enum, nullable=False)
+
+    # Valores anteriores (antes del cambio)
+    previous_bed_id: Mapped[Optional[str]] = mapped_column(UUID(as_uuid=False))
+    previous_room_id: Mapped[Optional[str]] = mapped_column(UUID(as_uuid=False))
+    previous_floor_id: Mapped[Optional[str]] = mapped_column(UUID(as_uuid=False))
+    previous_status: Mapped[Optional[str]] = mapped_column(Text)
+
+    # Metadatos del cambio
+    change_type: Mapped[str] = mapped_column(resident_history_change_type_enum, nullable=False)
+    changed_by: Mapped[Optional[str]] = mapped_column(
+        UUID(as_uuid=False),
+        ForeignKey("user.id", ondelete="SET NULL")
+    )
+    changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    # Información adicional en JSON
+    meta: Mapped[Optional[Dict]] = mapped_column(JSONB)
+
+    def __repr__(self) -> str:
+        return f"<ResidentHistory(id={self.id}, resident_id={self.resident_id[:8]}..., change_type={self.change_type})>"
+
+    def __str__(self) -> str:
+        return f"Cambio de residente {self.resident_id[:8]}... - {self.change_type} el {self.changed_at}"
+
+    @property
+    def change_summary(self) -> str:
+        """Resumen legible del cambio"""
+        if self.change_type == 'bed_assignment':
+            return f"Asignado a cama {self.bed_id[:8] if self.bed_id else 'N/A'}"
+        elif self.change_type == 'bed_removal':
+            return f"Removido de cama {self.previous_bed_id[:8] if self.previous_bed_id else 'N/A'}"
+        elif self.change_type == 'status_change':
+            return f"Estado cambiado de {self.previous_status} a {self.status}"
+        elif self.change_type == 'residence_transfer':
+            return f"Transferido a residencia {self.residence_id[:8]}"
+        return self.change_type
+
+    @property
+    def location_changed(self) -> bool:
+        """Indica si hubo cambio de ubicación"""
+        return (self.bed_id != self.previous_bed_id or
+                self.room_id != self.previous_room_id or
+                self.floor_id != self.previous_floor_id)
+
+    @property
+    def status_changed(self) -> bool:
+        """Indica si hubo cambio de estado"""
+        return self.status != self.previous_status
+
+
 class EventLog(Base):
     __tablename__ = "event_log"
 
@@ -815,16 +901,17 @@ class EventLog(Base):
 __all__ = [
     "Base",
     "user_role_enum",
-    "resident_status_enum", 
+    "resident_status_enum",
     "device_type_enum",
     "measurement_type_enum",
     "measurement_source_enum",
+    "resident_history_change_type_enum",
 
     "User",
     "Residence",
     "UserResidence",
     "Floor",
-    "Room", 
+    "Room",
     "Bed",
     "Resident",
     "Device",
@@ -834,5 +921,6 @@ __all__ = [
     "Measurement",
     "Tag",
     "ResidentTag",
+    "ResidentHistory",
     "EventLog",
 ]

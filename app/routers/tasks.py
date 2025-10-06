@@ -1593,59 +1593,96 @@ async def parse_voice_transcript(
         resident_match = await voice_service.find_resident_by_name(
             resident_name, payload.residence_id, db
         )
-        
+
         if not resident_match:
             return VoiceParseResponse(
                 success=False,
                 error=f"No se encontró residente con el nombre '{resident_name}' en esta residencia"
             )
-        
-        resident_id, matched_resident_name = resident_match
-        
+
+        # Verificar tipo de resultado: (id, name, None) | (None, error, None) | (None, None, options)
+        if resident_match[0] is None and resident_match[1] is not None:
+            # Error de validación
+            return VoiceParseResponse(
+                success=False,
+                error=resident_match[1]
+            )
+
+        if resident_match[0] is None and resident_match[2] is not None:
+            # Ambigüedad - retornar opciones
+            return VoiceParseResponse(
+                success=False,
+                resident_options=resident_match[2]
+            )
+
+        resident_id, matched_resident_name, _ = resident_match
+
         # Buscar tarea con fuzzy matching
         task_match = await voice_service.find_task_by_name(
             task_name, payload.residence_id, db
         )
-        
+
         if not task_match:
             return VoiceParseResponse(
                 success=False,
                 error=f"No se encontró tarea con el nombre '{task_name}' en esta residencia"
             )
-        
-        task_id, matched_task_name = task_match
-        
+
+        # Verificar tipo de resultado
+        if task_match[0] is None and task_match[2] is not None:
+            # Ambigüedad - retornar opciones
+            return VoiceParseResponse(
+                success=False,
+                task_options=task_match[2]
+            )
+
+        task_id, matched_task_name, _ = task_match
+
         # Validar status si se proporcionó
+        matched_status = None
         if status:
-            status_valid = await voice_service.validate_task_status(task_id, status, db)
-            if not status_valid:
-                return VoiceParseResponse(
-                    success=False,
-                    error=f"La tarea '{matched_task_name}' no tiene el estado '{status}' disponible"
-                )
-        
+            status_result = await voice_service.validate_task_status(task_id, status, db)
+
+            if status_result:
+                # Verificar tipo de resultado: (matched, None, None) | (None, error, None) | (None, None, options)
+                if status_result[0] is None and status_result[1] is not None:
+                    # Error de validación
+                    return VoiceParseResponse(
+                        success=False,
+                        error=status_result[1]
+                    )
+
+                if status_result[0] is None and status_result[2] is not None:
+                    # Ambigüedad - retornar opciones
+                    return VoiceParseResponse(
+                        success=False,
+                        status_options=status_result[2]
+                    )
+
+                matched_status = status_result[0]
+
         # Verificar si la tarea tiene estados definidos
         template_query = select(TaskTemplate).where(TaskTemplate.id == task_id)
         template_result = await db.execute(template_query)
         template = template_result.scalar_one()
-        
+
         has_statuses = any([
             template.status1, template.status2, template.status3,
             template.status4, template.status5, template.status6
         ])
-        
-        # Generar mensaje de confirmación
+
+        # Generar mensaje de confirmación con el estado matched (no el original)
         confirmation_message = voice_service.generate_confirmation_message(
-            matched_resident_name, matched_task_name, status, has_statuses
+            matched_resident_name, matched_task_name, matched_status, has_statuses
         )
-        
+
         return VoiceParseResponse(
             success=True,
             resident_id=resident_id,
             resident_name=matched_resident_name,
             task_id=task_id,
             task_name=matched_task_name,
-            status=status if status else None,
+            status=matched_status,
             confirmation_message=confirmation_message
         )
         

@@ -115,8 +115,16 @@ def _can_edit_delete(current: dict, recorder_id: str, role_manager_label: str = 
 
 async def get_measurement_or_404(measurement_id: str, db: AsyncSession) -> Measurement:
     """Get measurement by ID or raise 404"""
+    from sqlalchemy.orm import joinedload
+
     result = await db.execute(
-        select(Measurement).where(Measurement.id == measurement_id, Measurement.deleted_at.is_(None))
+        select(Measurement)
+        .options(
+            joinedload(Measurement.resident),
+            joinedload(Measurement.device),
+            joinedload(Measurement.recorded_by_user)
+        )
+        .where(Measurement.id == measurement_id, Measurement.deleted_at.is_(None))
     )
     measurement = result.scalar_one_or_none()
     if not measurement:
@@ -638,12 +646,63 @@ async def get_measurement(
     residence_id: str | None = Query(None, description="Filter by residence ID"),
 ):
     """Get a specific measurement"""
-    measurement = await get_measurement_or_404(measurement_id, db)
+    # Query with JOINs to get additional information including names
+    query = select(
+        Measurement,
+        Resident.full_name.label("resident_full_name"),
+        Bed.name.label("bed_name"),
+        User.name.label("recorded_by_name"),
+        Device.name.label("device_name")
+    ).join(
+        Resident, Measurement.resident_id == Resident.id
+    ).join(
+        Bed, Resident.bed_id == Bed.id, isouter=True
+    ).join(
+        User, Measurement.recorded_by == User.id
+    ).join(
+        Device, Measurement.device_id == Device.id, isouter=True
+    ).where(
+        Measurement.id == measurement_id,
+        Measurement.deleted_at.is_(None)
+    )
+
+    result = await db.execute(query)
+    row = result.one_or_none()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Measurement not found")
+
+    measurement, resident_full_name, bed_name, recorded_by_name, device_name = row
 
     # Fijar/validar residencia respecto a la medición
     await apply_residence_context_or_infer(db, current, residence_id, resident_id=measurement.resident_id)
 
-    return measurement
+    # Convert to MeasurementOut with names
+    measurement_dict = {
+        "id": measurement.id,
+        "residence_id": measurement.residence_id,
+        "resident_id": measurement.resident_id,
+        "resident_full_name": resident_full_name,
+        "bed_name": bed_name,
+        "recorded_by": measurement.recorded_by,
+        "recorded_by_name": recorded_by_name,
+        "source": measurement.source,
+        "device_id": measurement.device_id,
+        "device_name": device_name,
+        "type": measurement.type,
+        "systolic": measurement.systolic,
+        "diastolic": measurement.diastolic,
+        "pulse_bpm": measurement.pulse_bpm,
+        "spo2": measurement.spo2,
+        "weight_kg": measurement.weight_kg,
+        "temperature_c": measurement.temperature_c,
+        "taken_at": measurement.taken_at,
+        "created_at": measurement.created_at,
+        "updated_at": measurement.updated_at,
+        "deleted_at": measurement.deleted_at
+    }
+
+    return MeasurementOut(**measurement_dict)
 
 @router.put("/{measurement_id}", response_model=MeasurementOut)
 async def update_measurement(

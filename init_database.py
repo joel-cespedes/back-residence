@@ -53,13 +53,14 @@ async def drop_all_tables(engine):
 async def create_enums(engine):
     """Crea todos los tipos enum necesarios en PostgreSQL"""
     print("📝 Creando tipos enum...")
-    
+
     enums = [
         ("user_role_enum", "CREATE TYPE user_role_enum AS ENUM ('superadmin', 'manager', 'professional')"),
         ("resident_status_enum", "CREATE TYPE resident_status_enum AS ENUM ('active', 'discharged', 'deceased')"),
         ("device_type_enum", "CREATE TYPE device_type_enum AS ENUM ('blood_pressure', 'pulse_oximeter', 'scale', 'thermometer')"),
         ("measurement_type_enum", "CREATE TYPE measurement_type_enum AS ENUM ('bp', 'spo2', 'weight', 'temperature')"),
         ("measurement_source_enum", "CREATE TYPE measurement_source_enum AS ENUM ('device', 'voice', 'manual')"),
+        ("resident_history_change_type_enum", "CREATE TYPE resident_history_change_type_enum AS ENUM ('bed_assignment', 'bed_removal', 'status_change', 'residence_transfer')"),
     ]
     
     # Crear cada enum en su propia transacción para evitar abortos
@@ -88,6 +89,99 @@ async def create_tables(engine):
         await conn.run_sync(Base.metadata.create_all)
     
     print("✅ Todas las tablas creadas")
+
+async def create_triggers(engine):
+    """Crea triggers para resident_history que registran automáticamente cambios"""
+    print("🔔 Creando triggers para resident_history...")
+
+    async with engine.begin() as conn:
+        # Función del trigger que registra cambios en resident_history
+        await conn.execute(text("""
+            CREATE OR REPLACE FUNCTION log_resident_changes()
+            RETURNS TRIGGER AS $$
+            DECLARE
+                v_change_type resident_history_change_type_enum;
+                v_changed_by UUID;
+            BEGIN
+                -- Obtener el usuario que hizo el cambio desde el contexto de sesión
+                BEGIN
+                    v_changed_by := current_setting('app.user_id', true)::UUID;
+                EXCEPTION WHEN OTHERS THEN
+                    v_changed_by := NULL;
+                END;
+
+                -- Determinar el tipo de cambio
+                IF (OLD.bed_id IS NULL AND NEW.bed_id IS NOT NULL) THEN
+                    v_change_type := 'bed_assignment';
+                ELSIF (OLD.bed_id IS NOT NULL AND NEW.bed_id IS NULL) THEN
+                    v_change_type := 'bed_removal';
+                ELSIF (OLD.status IS DISTINCT FROM NEW.status) THEN
+                    v_change_type := 'status_change';
+                ELSIF (OLD.residence_id IS DISTINCT FROM NEW.residence_id) THEN
+                    v_change_type := 'residence_transfer';
+                ELSIF (OLD.bed_id IS DISTINCT FROM NEW.bed_id OR
+                       OLD.room_id IS DISTINCT FROM NEW.room_id OR
+                       OLD.floor_id IS DISTINCT FROM NEW.floor_id) THEN
+                    v_change_type := 'bed_assignment';
+                ELSE
+                    -- Si no hay cambios relevantes, no registrar
+                    RETURN NEW;
+                END IF;
+
+                -- Insertar registro en resident_history
+                INSERT INTO resident_history (
+                    resident_id,
+                    residence_id,
+                    bed_id,
+                    room_id,
+                    floor_id,
+                    status,
+                    previous_bed_id,
+                    previous_room_id,
+                    previous_floor_id,
+                    previous_status,
+                    change_type,
+                    changed_by,
+                    changed_at
+                ) VALUES (
+                    NEW.id,
+                    NEW.residence_id,
+                    NEW.bed_id,
+                    NEW.room_id,
+                    NEW.floor_id,
+                    NEW.status,
+                    OLD.bed_id,
+                    OLD.room_id,
+                    OLD.floor_id,
+                    OLD.status,
+                    v_change_type,
+                    v_changed_by,
+                    NOW()
+                );
+
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+        """))
+        print("  ✅ Función log_resident_changes() creada")
+
+        # Trigger que se ejecuta DESPUÉS de UPDATE en resident
+        # Separar DROP y CREATE para evitar error de asyncpg
+        await conn.execute(text("DROP TRIGGER IF EXISTS resident_changes_trigger ON resident"))
+        await conn.execute(text("""
+            CREATE TRIGGER resident_changes_trigger
+            AFTER UPDATE ON resident
+            FOR EACH ROW
+            WHEN (
+                OLD.bed_id IS DISTINCT FROM NEW.bed_id OR
+                OLD.room_id IS DISTINCT FROM NEW.room_id OR
+                OLD.floor_id IS DISTINCT FROM NEW.floor_id OR
+                OLD.status IS DISTINCT FROM NEW.status OR
+                OLD.residence_id IS DISTINCT FROM NEW.residence_id
+            )
+            EXECUTE FUNCTION log_resident_changes()
+        """))
+        print("  ✅ Trigger resident_changes_trigger creado")
 
 async def create_indexes(engine):
     """Crea índices adicionales para mejorar el rendimiento"""
@@ -155,11 +249,20 @@ async def create_indexes(engine):
         'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_event_log_entity ON event_log (entity)',
         'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_event_log_action ON event_log (action)',
         'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_event_log_at ON event_log (at)',
-        
+
+        # Índices para resident_history (analítica de movimientos)
+        'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_resident_history_resident_id ON resident_history (resident_id)',
+        'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_resident_history_residence_id ON resident_history (residence_id)',
+        'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_resident_history_bed_id ON resident_history (bed_id)',
+        'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_resident_history_changed_by ON resident_history (changed_by)',
+        'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_resident_history_changed_at ON resident_history (changed_at)',
+        'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_resident_history_change_type ON resident_history (change_type)',
+
         # Índices compuestos para consultas complejas
         'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_resident_residence_status ON resident (residence_id, status)',
         'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_measurement_resident_type_taken ON measurement (resident_id, type, taken_at)',
         'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_task_app_resident_status ON task_application (resident_id, selected_status_text)',
+        'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_resident_history_resident_changed ON resident_history (resident_id, changed_at DESC)',
     ]
     
     async with engine.begin() as conn:
@@ -180,14 +283,14 @@ async def verify_setup(engine):
     async with engine.begin() as conn:
         # Verificar que los enums existan
         result = await conn.execute(text("""
-            SELECT typname FROM pg_type 
-            WHERE typname IN ('user_role_enum', 'resident_status_enum', 'device_type_enum', 
-                             'measurement_type_enum', 'measurement_source_enum')
+            SELECT typname FROM pg_type
+            WHERE typname IN ('user_role_enum', 'resident_status_enum', 'device_type_enum',
+                             'measurement_type_enum', 'measurement_source_enum', 'resident_history_change_type_enum')
         """))
         enums = [row[0] for row in result.fetchall()]
         
-        expected_enums = ['user_role_enum', 'resident_status_enum', 'device_type_enum', 
-                         'measurement_type_enum', 'measurement_source_enum']
+        expected_enums = ['user_role_enum', 'resident_status_enum', 'device_type_enum',
+                         'measurement_type_enum', 'measurement_source_enum', 'resident_history_change_type_enum']
         
         for enum_name in expected_enums:
             if enum_name in enums:
@@ -201,8 +304,8 @@ async def verify_setup(engine):
         """))
         tables = [row[0] for row in result.fetchall()]
         
-        expected_tables = ['user', 'residence', 'user_residence', 'floor', 'room', 'bed', 
-                          'resident', 'device', 'measurement', 'task_category', 'task_template', 
+        expected_tables = ['user', 'residence', 'user_residence', 'floor', 'room', 'bed',
+                          'resident', 'resident_history', 'device', 'measurement', 'task_category', 'task_template',
                           'task_application', 'tag', 'resident_tag', 'event_log']
         
         for table_name in expected_tables:
@@ -246,11 +349,14 @@ async def main():
         
         # 3. Crear todas las tablas
         await create_tables(engine)
-        
-        # 4. Crear índices de rendimiento
+
+        # 4. Crear triggers para resident_history
+        await create_triggers(engine)
+
+        # 5. Crear índices de rendimiento
         await create_indexes(engine)
-        
-        # 5. Verificar configuración
+
+        # 6. Verificar configuración
         await verify_setup(engine)
         
         print("=" * 60)

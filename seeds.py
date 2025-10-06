@@ -155,16 +155,16 @@ class DatabaseSeeder:
         await self.session.flush()
         return user
 
-    async def create_residences(self, count: int) -> List[Residence]:
-        """Crea residencias con datos de contacto"""
-        print(f"🏠 Creando {count} residencias...")
+    async def create_residences(self, count: int, superadmin_id: str) -> List[Residence]:
+        """Crea residencias con datos de contacto - SOLO creadas por superadmin"""
+        print(f"🏠 Creando {count} residencias (creadas por superadmin)...")
         residences = []
 
         for i in range(count):
             residence_id = str(uuid.uuid4())
             name = f"{NOMBRES_RESIDENCIAS[i % len(NOMBRES_RESIDENCIAS)]} {i+1}"
             address = f"Calle Principal {i+1}, Ciudad, País"
-            
+
             # Datos de contacto simulados
             phone = f"+34 91 {random.randint(100, 999)} {random.randint(10, 99)} {random.randint(10, 99)}"
             email = f"info@residencia{i+1}.com"
@@ -175,6 +175,7 @@ class DatabaseSeeder:
                 address=address,
                 phone_encrypted=phone.encode('utf-8'),
                 email_encrypted=email.encode('utf-8'),
+                created_by=superadmin_id,  # ✅ Solo el superadmin crea residencias
                 created_at=self.fecha_inicio + timedelta(days=random.randint(0, 300))
             )
 
@@ -182,6 +183,7 @@ class DatabaseSeeder:
             residences.append(residence)
 
         await self.session.flush()
+        print(f"  ✅ {count} residencias creadas por superadmin")
         return residences
 
     async def create_structure(self, residences: List[Residence]) -> Tuple[List[Floor], List[Room], List[Bed]]:
@@ -247,76 +249,98 @@ class DatabaseSeeder:
         await self.session.flush()
         return all_floors, all_rooms, all_beds
 
-    async def create_residents(self, count: int, beds: List[Bed], rooms: List[Room], residences: List[Residence]) -> List[Resident]:
-        """Crea residentes asignados a camas"""
-        print(f"👥 Creando {count} residentes...")
+    async def create_residents(self, count_per_residence: int, beds: List[Bed], rooms: List[Room], residences: List[Residence]) -> List[Resident]:
+        """Crea residentes asignados a camas - count_per_residence residentes POR CADA residencia"""
+        total_count = count_per_residence * len(residences)
+        print(f"👥 Creando {count_per_residence} residentes por residencia ({total_count} total en {len(residences)} residencias)...")
         residents = []
 
         # Crear un mapa de room_id -> floor_id para consulta rápida
         room_to_floor_map = {room.id: room.floor_id for room in rooms}
 
-        for i in range(count):
-            resident_id = str(uuid.uuid4())
-            residence = random.choice(residences)
-            
-            # Filtrar camas de la residencia
+        # Crear residentes POR CADA residencia
+        resident_counter = 0
+        for residence in residences:
+            # Filtrar camas de ESTA residencia
             residence_beds = [b for b in beds if b.residence_id == residence.id]
-            bed = random.choice(residence_beds) if residence_beds else None
 
-            # Datos del residente
-            full_name = NOMBRES_RESIDENTES[i % len(NOMBRES_RESIDENTES)]
-            
-            # Fecha de nacimiento (65-95 años)
-            birth_year = random.randint(1929, 1959)
-            birth_month = random.randint(1, 12)
-            birth_day = random.randint(1, 28)
-            birth_date = date(birth_year, birth_month, birth_day)
+            for i in range(count_per_residence):
+                resident_id = str(uuid.uuid4())
 
-            # Obtener room_id y floor_id de manera eficiente
-            room_id = bed.room_id if bed else None
-            floor_id = room_to_floor_map.get(room_id) if room_id else None
+                # Asignar cama (puede ser None si no hay suficientes camas)
+                bed = residence_beds[i % len(residence_beds)] if residence_beds else None
 
-            resident = Resident(
-                id=resident_id,
-                residence_id=residence.id,
-                full_name=full_name,
-                birth_date=birth_date,
-                sex=random.choice(["M", "F"]),
-                status=random.choice(["active", "active", "active", "discharged"]),  # 75% activos
-                bed_id=bed.id if bed else None,
-                room_id=room_id,
-                floor_id=floor_id,
-                comments=f"Residente de prueba - {full_name}"
-            )
+                # Datos del residente
+                full_name = NOMBRES_RESIDENTES[resident_counter % len(NOMBRES_RESIDENTES)]
+                resident_counter += 1
 
-            self.session.add(resident)
-            residents.append(resident)
+                # Fecha de nacimiento (65-95 años)
+                birth_year = random.randint(1929, 1959)
+                birth_month = random.randint(1, 12)
+                birth_day = random.randint(1, 28)
+                birth_date = date(birth_year, birth_month, birth_day)
+
+                # Obtener room_id y floor_id de manera eficiente
+                room_id = bed.room_id if bed else None
+                floor_id = room_to_floor_map.get(room_id) if room_id else None
+
+                resident = Resident(
+                    id=resident_id,
+                    residence_id=residence.id,
+                    full_name=full_name,
+                    birth_date=birth_date,
+                    sex=random.choice(["M", "F"]),
+                    status=random.choice(["active", "active", "active", "discharged"]),  # 75% activos
+                    bed_id=bed.id if bed else None,
+                    room_id=room_id,
+                    floor_id=floor_id,
+                    comments=f"Residente de prueba - {full_name}"
+                )
+
+                self.session.add(resident)
+                residents.append(resident)
 
         await self.session.flush()
         return residents
 
-    async def create_task_system(self, residences: List[Residence], creator_id: str = None) -> Tuple[List[TaskCategory], List[TaskTemplate]]:
-        """Crea el sistema de categorías y plantillas de tareas"""
-        print("📋 Creando sistema de tareas...")
-        
+    async def create_task_system(self, residences: List[Residence], managers: List[User], user_residence_map: Dict[str, List[str]]) -> Tuple[List[TaskCategory], List[TaskTemplate]]:
+        """Crea el sistema de categorías y plantillas de tareas - SOLO por gestores asignados a la residencia"""
+        print("📋 Creando sistema de tareas (solo por gestores asignados)...")
+
         all_categories = []
         all_templates = []
 
         for residence in residences:
-            # Crear categorías para cada residencia
+            # Obtener gestores asignados a esta residencia
+            managers_for_residence = [
+                m for m in managers
+                if residence.id in user_residence_map.get(m.id, [])
+            ]
+
+            if not managers_for_residence:
+                print(f"  ⚠️  No hay gestores asignados a {residence.name}, saltando tareas...")
+                continue
+
+            # Crear categorías para cada residencia (creadas por un gestor asignado)
             for category_name in CATEGORIAS_TAREAS:
+                # Elegir un gestor aleatorio de los asignados para crear esta categoría
+                creator = random.choice(managers_for_residence)
+
                 category = TaskCategory(
                     id=str(uuid.uuid4()),
                     residence_id=residence.id,
                     name=category_name,
-                    created_by=creator_id
+                    created_by=creator.id  # ✅ Gestor asignado a la residencia
                 )
                 self.session.add(category)
                 all_categories.append(category)
 
-                # Crear plantillas para cada categoría
+                # Crear plantillas para cada categoría (creadas por gestores asignados)
                 templates_data = PLANTILLAS_TAREAS.get(category_name, [])
                 for template_name, statuses in templates_data:
+                    # Elegir un gestor aleatorio de los asignados para crear esta plantilla
+                    template_creator = random.choice(managers_for_residence)
+
                     # Solo 50% de las tareas tendrán estados definidos
                     if random.random() < 0.5:
                         # Esta tarea tendrá estados, pero cantidad variable (2-6)
@@ -324,7 +348,7 @@ class DatabaseSeeder:
                         status_list = []
                         for i in range(num_statuses):
                             status_list.append(random.choice(statuses))
-                        
+
                         # Rellenar solo los primeros N estados
                         template = TaskTemplate(
                             id=str(uuid.uuid4()),
@@ -337,7 +361,7 @@ class DatabaseSeeder:
                             status4=status_list[3] if len(status_list) > 3 else None,
                             status5=status_list[4] if len(status_list) > 4 else None,
                             status6=status_list[5] if len(status_list) > 5 else None,
-                            created_by=creator_id
+                            created_by=template_creator.id  # ✅ Gestor asignado
                         )
                     else:
                         # Esta tarea no tendrá estados (todos None)
@@ -352,7 +376,7 @@ class DatabaseSeeder:
                             status4=None,
                             status5=None,
                             status6=None,
-                            created_by=creator_id
+                            created_by=template_creator.id  # ✅ Gestor asignado
                         )
                     
                     self.session.add(template)
@@ -678,27 +702,87 @@ class DatabaseSeeder:
         
         return measurements
 
-    async def assign_users_to_residences(self, users: List[User], residences: List[Residence], superadmin_id: str = None):
-        """Asigna usuarios a residencias - cada usuario al 70% de las residencias"""
-        print("🔗 Asignando usuarios a residencias...")
-        
-        for user in users:
-            if user.role == "superadmin":
-                continue  # Superadmin no necesita asignaciones específicas
-                
-            # Cada usuario se asigna al 70% de las residencias
-            num_residences = max(1, int(len(residences) * 0.7))
-            assigned_residences = random.sample(residences, min(num_residences, len(residences)))
-            
-            for residence in assigned_residences:
+    async def assign_users_to_residences(self, managers: List[User], professionals: List[User], residences: List[Residence], superadmin_id: str) -> Dict[str, List[str]]:
+        """
+        Asigna usuarios a residencias con jerarquía realista:
+        - Superadmin asigna residencias al gestor1
+        - Gestor1 puede asignar SUS residencias a gestor2 y gestor3
+        - Cualquier gestor puede asignar SUS residencias a profesionales
+        Retorna un mapa {user_id: [residence_ids]}
+        """
+        print("🔗 Asignando usuarios a residencias (con validación de cascada)...")
+
+        user_residence_map = {}  # {user_id: [residence_ids]}
+
+        # Paso 1: Superadmin asigna TODAS las residencias al gestor1
+        # IMPORTANTE: Gestor1 debe tener TODAS las residencias para que todas tengan al menos un gestor
+        manager1 = managers[0]  # Gestor1
+        manager1_residences = residences  # ✅ TODAS las residencias
+        user_residence_map[manager1.id] = [r.id for r in manager1_residences]
+
+        for residence in manager1_residences:
+            assignment = UserResidence(
+                user_id=manager1.id,
+                residence_id=residence.id,
+                created_by=superadmin_id  # ✅ Superadmin asigna al gestor1
+            )
+            self.session.add(assignment)
+
+        print(f"  ✅ Superadmin asignó {len(manager1_residences)} residencias (TODAS) a gestor1")
+
+        # Paso 2: Gestor1 asigna 10 residencias a gestor2 y gestor3 (con solapamiento)
+        # Gestor2: 10 residencias mezcladas
+        shuffled_residences = random.sample(manager1_residences, len(manager1_residences))
+        manager2_residences = shuffled_residences[:10]
+        user_residence_map[managers[1].id] = [r.id for r in manager2_residences]
+
+        for residence in manager2_residences:
+            assignment = UserResidence(
+                user_id=managers[1].id,
+                residence_id=residence.id,
+                created_by=manager1.id  # ✅ Gestor1 asigna a gestor2
+            )
+            self.session.add(assignment)
+
+        print(f"  ✅ Gestor1 asignó {len(manager2_residences)} residencias a gestor2")
+
+        # Gestor3: 10 residencias mezcladas (puede solaparse con gestor2)
+        shuffled_residences2 = random.sample(manager1_residences, len(manager1_residences))
+        manager3_residences = shuffled_residences2[:10]
+        user_residence_map[managers[2].id] = [r.id for r in manager3_residences]
+
+        for residence in manager3_residences:
+            assignment = UserResidence(
+                user_id=managers[2].id,
+                residence_id=residence.id,
+                created_by=manager1.id  # ✅ Gestor1 asigna a gestor3
+            )
+            self.session.add(assignment)
+
+        print(f"  ✅ Gestor1 asignó {len(manager3_residences)} residencias a gestor3")
+
+        # Paso 3: Cada profesional recibe 10 residencias mezcladas
+        for idx, professional in enumerate(professionals, start=1):
+            # Elegir un gestor aleatorio que asignará residencias al profesional
+            assigning_manager = random.choice(managers)
+
+            # Mezclar TODAS las residencias y tomar 10
+            shuffled_all = random.sample(residences, len(residences))
+            professional_residences = shuffled_all[:10]
+            user_residence_map[professional.id] = [r.id for r in professional_residences]
+
+            for residence in professional_residences:
                 assignment = UserResidence(
-                    user_id=user.id,
+                    user_id=professional.id,
                     residence_id=residence.id,
-                    created_by=superadmin_id  # El superadmin asigna las residencias
+                    created_by=assigning_manager.id  # ✅ Gestor aleatorio asigna
                 )
                 self.session.add(assignment)
 
+            print(f"  ✅ Gestor {managers.index(assigning_manager)+1} asignó {len(professional_residences)} residencias a profesional{idx}")
+
         await self.session.flush()
+        return user_residence_map
 
     async def create_task_applications(self, residents: List[Resident], templates: List[TaskTemplate], 
                                      users: List[User], residences: List[Residence], days: int = 30):
@@ -745,223 +829,283 @@ class DatabaseSeeder:
             # Crear aplicaciones para cada día del período
             for day_offset in range(days):
                 current_date = base_date + timedelta(days=day_offset)
-                
-                # Número de aplicaciones este día (2, 3 o 5)
-                num_applications = random.choice([2, 3, 5])
-                
-                # Seleccionar residentes aleatorios para este día (pueden repetirse)
-                selected_residents = random.choices(residence_residents, k=num_applications)
-                
-                for resident in selected_residents:
-                    # Seleccionar usuario aleatorio de los asignados a esta residencia
-                    assigned_user = random.choice(residence_users)
-                    
-                    # Seleccionar template aleatorio de esta residencia
-                    template = random.choice(residence_templates)
-                    
-                    # Crear hora aleatoria del día (distribuir mejor las horas)
-                    hour = random.choice([8, 9, 10, 11, 14, 15, 16, 17])  # Horarios más realistas
-                    minute = random.randint(0, 59)
-                    applied_at = current_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
-                    
-                    # Determinar si esta aplicación tiene status (60% probabilidad)
-                    status_text = None
-                    status_index = None
-                    
-                    if random.random() < 0.6 and template.status1:  # 60% chance de tener status
-                        # Seleccionar un status aleatorio de los disponibles
-                        available_statuses = []
-                        if template.status1: available_statuses.append((1, template.status1))
-                        if template.status2: available_statuses.append((2, template.status2))
-                        if template.status3: available_statuses.append((3, template.status3))
-                        if template.status4: available_statuses.append((4, template.status4))
-                        if template.status5: available_statuses.append((5, template.status5))
-                        if template.status6: available_statuses.append((6, template.status6))
-                        
-                        if available_statuses:
-                            status_index, status_text = random.choice(available_statuses)
-                    
-                    # Crear la aplicación
-                    application = TaskApplication(
-                        id=str(uuid.uuid4()),
-                        residence_id=residence_id,
-                        resident_id=resident.id,
-                        task_template_id=template.id,
-                        applied_by=assigned_user.id,  # Usuario asignado a la residencia
-                        applied_at=applied_at,
-                        selected_status_index=status_index,
-                        selected_status_text=status_text,
-                        created_at=applied_at,
-                        updated_at=applied_at
-                    )
-                    
-                    self.session.add(application)
-                    applications.append(application)
+
+                # CADA residente recibe entre 3-7 aplicaciones de tareas por día
+                for resident in residence_residents:
+                    num_applications_per_resident = random.randint(3, 7)
+
+                    for _ in range(num_applications_per_resident):
+                        # Seleccionar usuario aleatorio de los asignados a esta residencia
+                        assigned_user = random.choice(residence_users)
+
+                        # Seleccionar template aleatorio de esta residencia
+                        template = random.choice(residence_templates)
+
+                        # Crear hora aleatoria del día (distribuir mejor las horas)
+                        # Horarios realistas: mañana, mediodía, tarde
+                        hour = random.choice([7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20])
+                        minute = random.randint(0, 59)
+                        applied_at = current_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
+
+                        # Determinar si esta aplicación tiene status (70% probabilidad - más realista)
+                        status_text = None
+                        status_index = None
+
+                        if random.random() < 0.7 and template.status1:  # 70% chance de tener status
+                            # Seleccionar un status aleatorio de los disponibles
+                            available_statuses = []
+                            if template.status1: available_statuses.append((1, template.status1))
+                            if template.status2: available_statuses.append((2, template.status2))
+                            if template.status3: available_statuses.append((3, template.status3))
+                            if template.status4: available_statuses.append((4, template.status4))
+                            if template.status5: available_statuses.append((5, template.status5))
+                            if template.status6: available_statuses.append((6, template.status6))
+
+                            if available_statuses:
+                                status_index, status_text = random.choice(available_statuses)
+
+                        # Crear la aplicación
+                        application = TaskApplication(
+                            id=str(uuid.uuid4()),
+                            residence_id=residence_id,
+                            resident_id=resident.id,
+                            task_template_id=template.id,
+                            applied_by=assigned_user.id,  # Usuario asignado a la residencia
+                            applied_at=applied_at,
+                            selected_status_index=status_index,
+                            selected_status_text=status_text,
+                            created_at=applied_at,
+                            updated_at=applied_at
+                        )
+
+                        self.session.add(application)
+                        applications.append(application)
         
         print(f"✅ {len(applications)} aplicaciones de tareas creadas")
         return applications
 
     async def seed_minimal(self):
-        """Seeds mínimos para desarrollo básico"""
+        """Seeds mínimos para desarrollo básico con jerarquía correcta"""
         print("🌱 Creando datos mínimos...")
-        
+
         # 1. Superadmin
         superadmin = await self.create_user(
             "admin", "admin123", "superadmin", "Administrador del Sistema",
-            "admin@residencias.com", "+34 600 000 000"
+            "admin@residencias.com", "+34 600 000 000",
+            created_by_id=None
         )
-        
-        # 2. Una residencia
-        residences = await self.create_residences(1)
-        
-        # 3. Un gestor y un profesional
-        manager = await self.create_user("manager1", "manager123", "manager", "Gestor Principal", created_by_id=superadmin.id)
-        professional = await self.create_user("prof1", "prof123", "professional", "Profesional de Cuidados", created_by_id=superadmin.id)
-        
-        # 4. Estructura básica
+
+        # 2. Una residencia (creada por superadmin)
+        residences = await self.create_residences(1, superadmin.id)
+
+        # 3. Un gestor creado por superadmin
+        manager = await self.create_user(
+            "gestor1", "test123", "manager", "Gestor Principal",
+            "gestor1@residencias.com", "+34 600 001 001",
+            created_by_id=superadmin.id
+        )
+
+        # 4. Un profesional creado por el gestor
+        professional = await self.create_user(
+            "profesional1", "test123", "professional", "Profesional de Cuidados",
+            "profesional1@residencias.com", "+34 700 001 001",
+            created_by_id=manager.id
+        )
+
+        # 5. Estructura básica
         floors, rooms, beds = await self.create_structure(residences)
-        
-        # 5. Algunos residentes
+
+        # 6. Asignaciones (con validación de cascada simplificada)
+        managers = [manager]
+        professionals = [professional]
+        user_residence_map = await self.assign_users_to_residences(managers, professionals, residences, superadmin.id)
+
+        # 7. Sistema de tareas básico (creado por gestor asignado)
+        categories, templates = await self.create_task_system(residences, managers, user_residence_map)
+
+        # 8. Algunos residentes
         residents = await self.create_residents(10, beds, rooms, residences)
-        
-        # 6. Sistema de tareas básico
-        categories, templates = await self.create_task_system(residences, superadmin.id)
-        
-        # 7. Asignaciones
-        await self.assign_users_to_residences([manager, professional], residences, superadmin.id)
-        
+
         await self.session.commit()
-        print("✅ Datos mínimos creados")
+        print("✅ Datos mínimos creados con jerarquía correcta")
 
     async def seed_development(self):
-        """Seeds para desarrollo completo"""
+        """Seeds para desarrollo completo con jerarquía realista"""
         print("🌱 Creando datos de desarrollo...")
-        
-        # 1. Usuarios del sistema
+
+        # 1. Superadmin (sin created_by)
         superadmin = await self.create_user(
             "admin", "admin123", "superadmin", "Administrador del Sistema",
-            "admin@residencias.com", "+34 600 000 000"
+            "admin@residencias.com", "+34 600 000 000",
+            created_by_id=None  # ✅ Superadmin no tiene creador
         )
-        
-        # Crear gestores con alias simples para testing
-        managers = []
-        manager_names = ["Carlos Gestor", "María Gestora", "José Gestor", "Ana Gestora"]
-        for i, name in enumerate(manager_names):
+        print(f"  ✅ Superadmin creado: {superadmin.id}")
+
+        # 2. Residencias (SOLO creadas por superadmin)
+        residences = await self.create_residences(16, superadmin.id)
+
+        # 3. Gestor1 creado por superadmin
+        manager1 = await self.create_user(
+            "gestor1", "test123", "manager", "Carlos Gestor Principal",
+            "gestor1@residencias.com", "+34 600 001 001",
+            created_by_id=superadmin.id  # ✅ Creado por superadmin
+        )
+        print(f"  ✅ Gestor1 creado por superadmin: {manager1.id}")
+
+        # 4. Gestores 2 y 3 creados por gestor1
+        managers = [manager1]
+        manager_data = [
+            ("gestor2", "María Gestora", "gestor2@residencias.com", "+34 600 002 002"),
+            ("gestor3", "José Gestor", "gestor3@residencias.com", "+34 600 003 003")
+        ]
+
+        for alias, name, email, phone in manager_data:
             manager = await self.create_user(
-                f"gestor{i+1}", "test123", "manager", name,
-                f"gestor{i+1}@residencias.com", f"+34 600 00{i+1} 00{i+1}",
-                superadmin.id  # Creado por el superadmin
+                alias, "test123", "manager", name, email, phone,
+                created_by_id=manager1.id  # ✅ Creado por gestor1
             )
             managers.append(manager)
-        
-        # Crear profesionales con alias simples para testing
+            print(f"  ✅ {alias} creado por gestor1: {manager.id}")
+
+        # 5. Profesionales (5 en total) creados ALEATORIAMENTE por cualquiera de los 3 gestores
         professionals = []
-        professional_names = ["Luis Profesional", "Carmen Profesional", "Pedro Profesional", "Laura Profesional"]
-        for i, name in enumerate(professional_names):
+        professional_data = [
+            ("profesional1", "Luis Profesional", "profesional1@residencias.com", "+34 700 001 001"),
+            ("profesional2", "Carmen Profesional", "profesional2@residencias.com", "+34 700 002 002"),
+            ("profesional3", "Pedro Profesional", "profesional3@residencias.com", "+34 700 003 003"),
+            ("profesional4", "Ana Profesional", "profesional4@residencias.com", "+34 700 004 004"),
+            ("profesional5", "María Profesional", "profesional5@residencias.com", "+34 700 005 005")
+        ]
+
+        for alias, name, email, phone in professional_data:
+            # Elegir un gestor aleatorio para crear este profesional
+            creating_manager = random.choice(managers)
             prof = await self.create_user(
-                f"profesional{i+1}", "test123", "professional", name,
-                f"profesional{i+1}@residencias.com", f"+34 700 00{i+1} 00{i+1}",
-                superadmin.id  # Creado por el superadmin
+                alias, "test123", "professional", name, email, phone,
+                created_by_id=creating_manager.id  # ✅ Creado por gestor aleatorio
             )
             professionals.append(prof)
-        
-        # 2. Residencias
-        residences = await self.create_residences(6)
-        
-        # 3. Estructura
+            manager_index = managers.index(creating_manager) + 1
+            print(f"  ✅ {alias} creado por gestor{manager_index}: {prof.id}")
+
+        # 6. Estructura (floors, rooms, beds)
         floors, rooms, beds = await self.create_structure(residences)
-        
-        # 4. Residentes
-        residents = await self.create_residents(60, beds, rooms, residences)
-        
-        # 5. Sistema de tareas
-        categories, templates = await self.create_task_system(residences, superadmin.id)
-        
-        # 6. Usuarios para asignaciones
+
+        # 7. Asignaciones de usuarios a residencias (CON VALIDACIÓN DE CASCADA)
+        user_residence_map = await self.assign_users_to_residences(managers, professionals, residences, superadmin.id)
+
+        # 8. Sistema de tareas (SOLO por gestores asignados a cada residencia)
+        categories, templates = await self.create_task_system(residences, managers, user_residence_map)
+
+        # 9. Residentes (20 por residencia = 320 total para 16 residencias)
+        residents = await self.create_residents(20, beds, rooms, residences)
+
+        # 10. Todos los usuarios para otras operaciones
         all_users = [superadmin] + managers + professionals
-        
-        # 7. Dispositivos
+
+        # 11. Dispositivos
         devices = await self.create_devices(residences, all_users)
-        
-        # 8. Etiquetas
+
+        # 12. Etiquetas
         tags = await self.create_tags_and_assignments(residents, all_users)
-        
-        # 9. Asignaciones
-        await self.assign_users_to_residences(managers + professionals, residences, superadmin.id)
-        
-        # 10. Mediciones de los últimos 7 días
+
+        # 13. Mediciones de los últimos 7 días
         measurements = await self.create_measurements(residents, devices, all_users, days=7)
-        
-        # 11. Aplicaciones de tareas realistas (último mes)
+
+        # 14. Aplicaciones de tareas realistas (último mes)
         task_applications = await self.create_task_applications(residents, templates, managers + professionals, residences, days=30)
-        
+
         await self.session.commit()
-        print("✅ Datos de desarrollo creados")
+        print("✅ Datos de desarrollo creados con jerarquía realista")
 
     async def seed_full(self):
-        """Seeds completos con grandes volúmenes"""
+        """Seeds completos con grandes volúmenes y jerarquía realista"""
         print("🌱 Creando datos completos...")
-        
-        # 1. Usuarios del sistema
+
+        # 1. Superadmin (sin created_by)
         superadmin = await self.create_user(
             "admin", "admin123", "superadmin", "Administrador del Sistema",
-            "admin@residencias.com", "+34 600 000 000"
+            "admin@residencias.com", "+34 600 000 000",
+            created_by_id=None  # ✅ Superadmin no tiene creador
         )
-        
-        # Crear gestores con alias simples para testing
-        managers = []
-        manager_names = ["Carlos Gestor", "María Gestora", "José Gestor", "Ana Gestora"]
-        for i, name in enumerate(manager_names):
+        print(f"  ✅ Superadmin creado: {superadmin.id}")
+
+        # 2. Residencias (SOLO creadas por superadmin)
+        residences = await self.create_residences(16, superadmin.id)
+
+        # 3. Gestor1 creado por superadmin
+        manager1 = await self.create_user(
+            "gestor1", "test123", "manager", "Carlos Gestor Principal",
+            "gestor1@residencias.com", "+34 600 001 001",
+            created_by_id=superadmin.id  # ✅ Creado por superadmin
+        )
+        print(f"  ✅ Gestor1 creado por superadmin: {manager1.id}")
+
+        # 4. Gestores 2 y 3 creados por gestor1
+        managers = [manager1]
+        manager_data = [
+            ("gestor2", "María Gestora", "gestor2@residencias.com", "+34 600 002 002"),
+            ("gestor3", "José Gestor", "gestor3@residencias.com", "+34 600 003 003")
+        ]
+
+        for alias, name, email, phone in manager_data:
             manager = await self.create_user(
-                f"gestor{i+1}", "test123", "manager", name,
-                f"gestor{i+1}@residencias.com", f"+34 600 00{i+1} 00{i+1}",
-                superadmin.id  # Creado por el superadmin
+                alias, "test123", "manager", name, email, phone,
+                created_by_id=manager1.id  # ✅ Creado por gestor1
             )
             managers.append(manager)
-        
-        # Crear profesionales con alias simples para testing
+            print(f"  ✅ {alias} creado por gestor1: {manager.id}")
+
+        # 5. Profesionales (5 en total) creados ALEATORIAMENTE por cualquiera de los 3 gestores
         professionals = []
-        professional_names = ["Luis Profesional", "Carmen Profesional", "Pedro Profesional", "Laura Profesional"]
-        for i, name in enumerate(professional_names):
+        professional_data = [
+            ("profesional1", "Luis Profesional", "profesional1@residencias.com", "+34 700 001 001"),
+            ("profesional2", "Carmen Profesional", "profesional2@residencias.com", "+34 700 002 002"),
+            ("profesional3", "Pedro Profesional", "profesional3@residencias.com", "+34 700 003 003"),
+            ("profesional4", "Ana Profesional", "profesional4@residencias.com", "+34 700 004 004"),
+            ("profesional5", "María Profesional", "profesional5@residencias.com", "+34 700 005 005")
+        ]
+
+        for alias, name, email, phone in professional_data:
+            # Elegir un gestor aleatorio para crear este profesional
+            creating_manager = random.choice(managers)
             prof = await self.create_user(
-                f"profesional{i+1}", "test123", "professional", name,
-                f"profesional{i+1}@residencias.com", f"+34 700 00{i+1} 00{i+1}",
-                superadmin.id  # Creado por el superadmin
+                alias, "test123", "professional", name, email, phone,
+                created_by_id=creating_manager.id  # ✅ Creado por gestor aleatorio
             )
             professionals.append(prof)
-        
-        # 2. Residencias
-        residences = await self.create_residences(12)
-        
-        # 3. Estructura
+            manager_index = managers.index(creating_manager) + 1
+            print(f"  ✅ {alias} creado por gestor{manager_index}: {prof.id}")
+
+        # 6. Estructura (floors, rooms, beds)
         floors, rooms, beds = await self.create_structure(residences)
-        
-        # 4. Residentes
-        residents = await self.create_residents(200, beds, rooms, residences)
-        
-        # 5. Sistema de tareas
-        categories, templates = await self.create_task_system(residences, superadmin.id)
-        
-        # 6. Usuarios para asignaciones
+
+        # 7. Asignaciones de usuarios a residencias (CON VALIDACIÓN DE CASCADA)
+        user_residence_map = await self.assign_users_to_residences(managers, professionals, residences, superadmin.id)
+
+        # 8. Sistema de tareas (SOLO por gestores asignados a cada residencia)
+        categories, templates = await self.create_task_system(residences, managers, user_residence_map)
+
+        # 9. Residentes (50 por residencia = 800 total para 16 residencias)
+        residents = await self.create_residents(50, beds, rooms, residences)
+
+        # 10. Todos los usuarios para otras operaciones
         all_users = [superadmin] + managers + professionals
-        
-        # 7. Dispositivos
+
+        # 11. Dispositivos
         devices = await self.create_devices(residences, all_users)
-        
-        # 8. Etiquetas
+
+        # 12. Etiquetas
         tags = await self.create_tags_and_assignments(residents, all_users)
-        
-        # 9. Asignaciones
-        await self.assign_users_to_residences(managers + professionals, residences, superadmin.id)
-        
-        # 10. Mediciones de los últimos 7 días
+
+        # 13. Mediciones de los últimos 7 días
         measurements = await self.create_measurements(residents, devices, all_users, days=7)
-        
-        # 11. Aplicaciones de tareas realistas (último mes)
+
+        # 14. Aplicaciones de tareas realistas (último mes)
         task_applications = await self.create_task_applications(residents, templates, managers + professionals, residences, days=30)
-        
+
         await self.session.commit()
-        print("✅ Datos completos creados")
+        print("✅ Datos completos creados con jerarquía realista")
 
     async def print_summary(self):
         """Imprime un resumen de los datos creados"""
@@ -976,6 +1120,7 @@ class DatabaseSeeder:
             ('Habitaciones', 'SELECT COUNT(*) FROM room'),
             ('Camas', 'SELECT COUNT(*) FROM bed'),
             ('Residentes', 'SELECT COUNT(*) FROM resident'),
+            ('Historial de residentes', 'SELECT COUNT(*) FROM resident_history'),
             ('Categorías de tareas', 'SELECT COUNT(*) FROM task_category'),
             ('Plantillas de tareas', 'SELECT COUNT(*) FROM task_template'),
             ('Aplicaciones de tareas', 'SELECT COUNT(*) FROM task_application'),
@@ -991,8 +1136,13 @@ class DatabaseSeeder:
         
         print("\n🔑 CREDENCIALES DE ACCESO:")
         print("  - Superadmin: admin / admin123")
-        print("  - Gestores: manager1, manager2, ... / manager123")
-        print("  - Profesionales: prof1, prof2, ... / prof123")
+        print("  - Gestores: gestor1, gestor2, gestor3 / test123")
+        print("  - Profesionales: profesional1, profesional2, profesional3, profesional4, profesional5 / test123")
+        print("\n📊 JERARQUÍA DE CREACIÓN:")
+        print("  - Superadmin → crea 16 residencias y gestor1")
+        print("  - Gestor1 (16 residencias) → crea gestor2, gestor3 y profesionales")
+        print("  - Gestor2 (10 residencias) y Gestor3 (10 residencias)")
+        print("  - Cada profesional tiene 10 residencias asignadas (con solapamiento)")
         print("="*60)
 
 # =====================================================================

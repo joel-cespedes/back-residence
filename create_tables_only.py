@@ -32,6 +32,7 @@ async def create_enums_safe(engine):
         ("device_type_enum", "CREATE TYPE device_type_enum AS ENUM ('blood_pressure', 'pulse_oximeter', 'scale', 'thermometer')"),
         ("measurement_type_enum", "CREATE TYPE measurement_type_enum AS ENUM ('bp', 'spo2', 'weight', 'temperature')"),
         ("measurement_source_enum", "CREATE TYPE measurement_source_enum AS ENUM ('device', 'voice', 'manual')"),
+        ("resident_history_change_type_enum", "CREATE TYPE resident_history_change_type_enum AS ENUM ('bed_assignment', 'bed_removal', 'status_change', 'residence_transfer')"),
     ]
     
     # Crear cada enum en su propia transacción
@@ -68,14 +69,14 @@ async def verify_setup(engine):
     async with engine.begin() as conn:
         # Verificar que los enums existan
         result = await conn.execute(text("""
-            SELECT typname FROM pg_type 
-            WHERE typname IN ('user_role_enum', 'resident_status_enum', 'device_type_enum', 
-                             'measurement_type_enum', 'measurement_source_enum')
+            SELECT typname FROM pg_type
+            WHERE typname IN ('user_role_enum', 'resident_status_enum', 'device_type_enum',
+                             'measurement_type_enum', 'measurement_source_enum', 'resident_history_change_type_enum')
         """))
         enums = [row[0] for row in result.fetchall()]
         
-        expected_enums = ['user_role_enum', 'resident_status_enum', 'device_type_enum', 
-                         'measurement_type_enum', 'measurement_source_enum']
+        expected_enums = ['user_role_enum', 'resident_status_enum', 'device_type_enum',
+                         'measurement_type_enum', 'measurement_source_enum', 'resident_history_change_type_enum']
         
         for enum_name in expected_enums:
             if enum_name in enums:
@@ -89,8 +90,8 @@ async def verify_setup(engine):
         """))
         tables = [row[0] for row in result.fetchall()]
         
-        expected_tables = ['user', 'residence', 'user_residence', 'floor', 'room', 'bed', 
-                          'resident', 'device', 'measurement', 'task_category', 'task_template', 
+        expected_tables = ['user', 'residence', 'user_residence', 'floor', 'room', 'bed',
+                          'resident', 'resident_history', 'device', 'measurement', 'task_category', 'task_template',
                           'task_application', 'tag', 'resident_tag', 'event_log']
         
         for table_name in expected_tables:
