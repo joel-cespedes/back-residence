@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Dict
+from typing import Dict, Optional
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from sqlalchemy import select, func, and_, or_, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,7 +11,8 @@ from app.deps import get_db, get_current_user
 from app.models import Resident, Bed, Residence, User, UserResidence, Room, Floor
 from app.schemas import (
     ResidentCreate, ResidentUpdate, ResidentOut, ResidentChangeBed,
-    PaginationParams, PaginatedResponse, FilterParams
+    PaginationParams, PaginatedResponse, FilterParams,
+    ResidentChronologyResponse
 )
 from app.security import new_uuid
 from app.services.permission_service import PermissionService
@@ -512,5 +514,224 @@ async def get_resident_history(
     )
 
     return [dict(row) for row in result.fetchall()]
+
+
+@router.get("/{id}/chronology", response_model=ResidentChronologyResponse)
+async def get_resident_chronology(
+    id: str,
+    include_measurements: bool = Query(True, description="Incluir mediciones"),
+    include_tasks: bool = Query(True, description="Incluir tareas"),
+    include_bed_changes: bool = Query(True, description="Incluir cambios de cama"),
+    include_status_changes: bool = Query(True, description="Incluir cambios de estado"),
+    date_from: Optional[datetime] = Query(None, description="Fecha desde"),
+    date_to: Optional[datetime] = Query(None, description="Fecha hasta"),
+    limit: int = Query(100, ge=1, le=500, description="Límite de eventos"),
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+    residence_id: str | None = Query(None, description="Filter by residence ID")
+):
+    """
+    Obtiene la cronología completa de un residente: mediciones, tareas y cambios de cama/estado.
+    Los eventos se retornan ordenados por fecha descendente (más recientes primero).
+    """
+    from app.schemas.chronology import (
+        ResidentChronologyResponse, MeasurementEvent, TaskEvent,
+        BedChangeEvent, StatusChangeEvent
+    )
+    from app.models import (
+        Resident, Measurement, TaskApplication, ResidentHistory,
+        User, Device, TaskTemplate, Room, Bed
+    )
+
+    # Verificar que el residente existe
+    resident_query = select(Resident).where(Resident.id == id, Resident.deleted_at.is_(None))
+    result = await db.execute(resident_query)
+    resident = result.scalar_one_or_none()
+
+    if not resident:
+        raise HTTPException(status_code=404, detail="Resident not found")
+
+    # Validar acceso a la residencia
+    rid = await apply_residence_context_or_infer(db, current, residence_id, resident_id=id)
+
+    events = []
+
+    # 1. MEDICIONES
+    if include_measurements:
+        measurement_query = select(
+            Measurement,
+            User.name.label("recorded_by_name"),
+            Device.name.label("device_name")
+        ).join(
+            User, Measurement.recorded_by == User.id, isouter=True
+        ).join(
+            Device, Measurement.device_id == Device.id, isouter=True
+        ).where(
+            Measurement.resident_id == id,
+            Measurement.deleted_at.is_(None)
+        )
+
+        if date_from:
+            measurement_query = measurement_query.where(Measurement.taken_at >= date_from)
+        if date_to:
+            measurement_query = measurement_query.where(Measurement.taken_at <= date_to)
+
+        measurement_result = await db.execute(measurement_query)
+
+        for measurement, recorded_by_name, device_name in measurement_result.all():
+            # Construir valores según el tipo
+            values = {}
+            if measurement.type == "bp":
+                values = {
+                    "systolic": measurement.systolic,
+                    "diastolic": measurement.diastolic,
+                    "pulse_bpm": measurement.pulse_bpm
+                }
+            elif measurement.type == "spo2":
+                values = {
+                    "spo2": measurement.spo2,
+                    "pulse_bpm": measurement.pulse_bpm
+                }
+            elif measurement.type == "weight":
+                values = {"weight_kg": measurement.weight_kg}
+            elif measurement.type == "temperature":
+                values = {"temperature_c": measurement.temperature_c}
+
+            events.append(MeasurementEvent(
+                measurement_id=measurement.id,
+                timestamp=measurement.taken_at,
+                measurement_type=measurement.type,
+                source=measurement.source,
+                device_name=device_name,
+                values=values,
+                recorded_by=measurement.recorded_by,
+                recorded_by_name=recorded_by_name
+            ))
+
+    # 2. TAREAS
+    if include_tasks:
+        task_query = select(
+            TaskApplication,
+            TaskTemplate.name.label("task_name"),
+            TaskTemplate.category_name.label("task_category"),
+            User.name.label("assigned_by_name")
+        ).join(
+            TaskTemplate, TaskApplication.template_id == TaskTemplate.id
+        ).join(
+            User, TaskApplication.assigned_by == User.id, isouter=True
+        ).where(
+            TaskApplication.resident_id == id,
+            TaskApplication.deleted_at.is_(None)
+        )
+
+        if date_from:
+            task_query = task_query.where(TaskApplication.assigned_at >= date_from)
+        if date_to:
+            task_query = task_query.where(TaskApplication.assigned_at <= date_to)
+
+        task_result = await db.execute(task_query)
+
+        for task_app, task_name, task_category, assigned_by_name in task_result.all():
+            events.append(TaskEvent(
+                task_application_id=task_app.id,
+                timestamp=task_app.assigned_at,
+                task_name=task_name,
+                task_category=task_category or "Sin categoría",
+                status=task_app.current_status,
+                assigned_by=task_app.assigned_by,
+                assigned_by_name=assigned_by_name,
+                recorded_by=task_app.assigned_by,
+                recorded_by_name=assigned_by_name
+            ))
+
+    # 3. CAMBIOS DE CAMA Y ESTADO
+    if include_bed_changes or include_status_changes:
+        history_query = select(
+            ResidentHistory,
+            User.name.label("changed_by_name"),
+            Room.name.label("prev_room_name"),
+            Room.name.label("new_room_name"),
+            Bed.number.label("prev_bed_number"),
+            Bed.number.label("new_bed_number")
+        ).join(
+            User, ResidentHistory.changed_by == User.id, isouter=True
+        ).join(
+            Room, ResidentHistory.previous_room_id == Room.id, isouter=True
+        ).join(
+            Bed, ResidentHistory.previous_bed_id == Bed.id, isouter=True
+        ).where(
+            ResidentHistory.resident_id == id
+        )
+
+        if date_from:
+            history_query = history_query.where(ResidentHistory.changed_at >= date_from)
+        if date_to:
+            history_query = history_query.where(ResidentHistory.changed_at <= date_to)
+
+        history_result = await db.execute(history_query)
+
+        for history, changed_by_name, prev_room_name, new_room_name, prev_bed_number, new_bed_number in history_result.all():
+            # Cambios de cama
+            if include_bed_changes and history.change_type in ['bed_assignment', 'bed_removal', 'residence_transfer']:
+                # Obtener nombres de habitación y cama nuevos
+                new_room = None
+                new_bed = None
+                if history.room_id:
+                    room_result = await db.execute(select(Room.name).where(Room.id == history.room_id))
+                    new_room = room_result.scalar()
+                if history.bed_id:
+                    bed_result = await db.execute(select(Bed.number).where(Bed.id == history.bed_id))
+                    new_bed = bed_result.scalar()
+
+                prev_location = f"{prev_room_name}, Cama {prev_bed_number}" if prev_room_name and prev_bed_number else None
+                new_location = f"{new_room}, Cama {new_bed}" if new_room and new_bed else None
+
+                events.append(BedChangeEvent(
+                    history_id=history.id,
+                    timestamp=history.changed_at,
+                    change_type=history.change_type,
+                    previous_location=prev_location,
+                    new_location=new_location,
+                    previous_bed_id=history.previous_bed_id,
+                    new_bed_id=history.bed_id,
+                    previous_room_id=history.previous_room_id,
+                    new_room_id=history.room_id,
+                    recorded_by=history.changed_by,
+                    recorded_by_name=changed_by_name
+                ))
+
+            # Cambios de estado
+            if include_status_changes and history.change_type == 'status_change':
+                events.append(StatusChangeEvent(
+                    history_id=history.id,
+                    timestamp=history.changed_at,
+                    previous_status=history.previous_status,
+                    new_status=history.status,
+                    recorded_by=history.changed_by,
+                    recorded_by_name=changed_by_name
+                ))
+
+    # Ordenar eventos por timestamp descendente (más recientes primero)
+    events.sort(key=lambda e: e.timestamp, reverse=True)
+
+    # Aplicar límite
+    events = events[:limit]
+
+    # Calcular estadísticas
+    total_measurements = sum(1 for e in events if e.event_type == "measurement")
+    total_tasks = sum(1 for e in events if e.event_type == "task")
+    total_bed_changes = sum(1 for e in events if e.event_type == "bed_change")
+    total_status_changes = sum(1 for e in events if e.event_type == "status_change")
+
+    return ResidentChronologyResponse(
+        resident_id=id,
+        resident_name=resident.full_name,
+        events=events,
+        total_events=len(events),
+        total_measurements=total_measurements,
+        total_tasks=total_tasks,
+        total_bed_changes=total_bed_changes,
+        total_status_changes=total_status_changes
+    )
 
 

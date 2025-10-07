@@ -134,7 +134,7 @@ class MeasurementOut(BaseModel):
 class MeasurementDailySummary(BaseModel):
     """
     Esquema para el resumen diario de mediciones por residente.
-    
+
     Attributes:
         resident_id (str): ID del residente
         resident_full_name (str): Nombre completo del residente
@@ -146,7 +146,7 @@ class MeasurementDailySummary(BaseModel):
         last_measurement_time (str): Hora de la última medición (HH:MM:SS)
     """
     model_config = ConfigDict(from_attributes=True)
-    
+
     resident_id: str
     resident_full_name: str
     bed_name: Optional[str] = None
@@ -155,3 +155,84 @@ class MeasurementDailySummary(BaseModel):
     measurement_types: List[str]
     first_measurement_time: str
     last_measurement_time: str
+
+
+# =========================================================
+# ESQUEMAS DE VOZ PARA MEDICIONES
+# =========================================================
+
+class VoiceMeasurementTranscript(BaseModel):
+    """Esquema para el request de procesamiento de voz de mediciones"""
+    residence_id: str
+    transcript: str
+
+
+class ResidentOption(BaseModel):
+    """Opción de residente para selección cuando hay ambigüedad"""
+    id: str
+    full_name: str
+    room_name: Optional[str] = None
+    bed_number: Optional[str] = None
+    floor_name: Optional[str] = None
+
+
+class MeasurementTypeOption(BaseModel):
+    """Opción de tipo de medición"""
+    type: str
+    label: str
+
+
+class MeasurementValuesOut(BaseModel):
+    """Valores de una medición según el tipo"""
+    systolic: Optional[int] = None
+    diastolic: Optional[int] = None
+    pulse_bpm: Optional[int] = None
+    spo2: Optional[int] = None
+    weight_kg: Optional[float] = None
+    temperature_c: Optional[float] = None
+
+
+class VoiceMeasurementData(BaseModel):
+    """Datos de la medición procesada exitosamente"""
+    id: str
+    resident_id: str
+    resident_name: str
+    measurement_type: str  # bp, spo2, weight, temperature
+    values: MeasurementValuesOut
+    source: str  # "voice"
+    recorded_at: datetime
+    recorded_by: str
+
+
+class VoiceMeasurementResponse(BaseModel):
+    """
+    Respuesta del procesamiento de voz de mediciones
+
+    Casos:
+    1. status=success: Match único, medición registrada
+    2. status=ambiguous: Residente ambiguo (resident_options)
+    3. status=error: Error en el procesamiento
+    """
+    status: str  # "success", "ambiguous", "error"
+    message: str
+
+    # Caso success
+    measurement: Optional[VoiceMeasurementData] = None
+    confirmation_message: Optional[str] = None
+
+    # Caso ambiguous - residente
+    resident_options: Optional[List[ResidentOption]] = None
+    parsed_measurement: Optional[dict] = None
+
+    # Caso error
+    error_code: Optional[str] = None
+    details: Optional[dict] = None
+
+
+class VoiceMeasurementConfirm(BaseModel):
+    """Esquema para confirmar una medición después de resolver ambigüedad"""
+    residence_id: str
+    resident_id: str
+    measurement_type: str  # bp, spo2, weight, temperature
+    values: dict
+    transcript: Optional[str] = None

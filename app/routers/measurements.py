@@ -14,7 +14,8 @@ from app.models import (
 )
 from app.schemas import (
     MeasurementCreate, MeasurementOut, MeasurementUpdate, MeasurementDailySummary,
-    PaginationParams, PaginatedResponse, FilterParams
+    PaginationParams, PaginatedResponse, FilterParams,
+    VoiceMeasurementTranscript, VoiceMeasurementResponse, VoiceMeasurementConfirm
 )
 from sqlalchemy import text
 
@@ -930,5 +931,249 @@ async def get_measurement_history(
     )
 
     return [dict(row._mapping) for row in result.fetchall()]
+
+
+# -------------------- ENDPOINTS DE VOZ --------------------
+
+@router.post("/voice", response_model=VoiceMeasurementResponse)
+async def process_voice_measurement(
+    payload: VoiceMeasurementTranscript,
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+):
+    """
+    Procesa un transcript de voz para registrar una medición médica.
+
+    Ejemplos de transcripts:
+    - "Tensión de Juan Pérez 120 80"
+    - "Oxígeno de María García 98"
+    - "Peso de Pedro López 75 kilos"
+    - "Temperatura de Ana Martínez 36.5"
+    """
+    from app.services.voice_measurement_service import VoiceMeasurementService
+    from app.schemas import VoiceMeasurementResponse, VoiceMeasurementData, MeasurementValuesOut
+    from datetime import datetime, timezone
+
+    # Validar residencia
+    residence_id = await apply_residence_context_or_infer(db, current, payload.residence_id)
+
+    # Procesar transcript
+    service = VoiceMeasurementService()
+    parsed = await service.parse_measurement_transcript(payload.transcript)
+
+    # Si hay error en el parseo
+    if parsed.get("error"):
+        return VoiceMeasurementResponse(
+            status="error",
+            message=parsed["error"],
+            error_code="PARSE_ERROR"
+        )
+
+    resident_name = parsed.get("resident_name")
+    measurement_type = parsed.get("measurement_type")
+    values = parsed.get("values", {})
+
+    # Buscar residente
+    resident_result = await service.find_resident_by_name(resident_name, residence_id, db)
+
+    if not resident_result:
+        return VoiceMeasurementResponse(
+            status="error",
+            message=f"No se encontró ningún residente con el nombre '{resident_name}'",
+            error_code="RESIDENT_NOT_FOUND"
+        )
+
+    # Si hay error de validación (ej: nombre muy corto)
+    if resident_result[1] and not resident_result[0] and not resident_result[2]:
+        return VoiceMeasurementResponse(
+            status="error",
+            message=resident_result[1],
+            error_code="VALIDATION_ERROR"
+        )
+
+    # Si hay ambigüedad en el residente
+    if resident_result[2]:  # options list
+        from app.schemas.measurement import ResidentOption
+        return VoiceMeasurementResponse(
+            status="ambiguous",
+            message="Hay múltiples residentes con ese nombre",
+            resident_options=[ResidentOption(**opt) for opt in resident_result[2]],
+            parsed_measurement={
+                "measurement_type": measurement_type,
+                "values": values
+            }
+        )
+
+    # Residente encontrado
+    resident_id, matched_resident_name, _ = resident_result
+
+    # Validar valores de la medición
+    is_valid, validation_error = service.validate_measurement_values(measurement_type, values)
+    if not is_valid:
+        return VoiceMeasurementResponse(
+            status="error",
+            message=validation_error,
+            error_code="INVALID_VALUES",
+            details={
+                "measurement_type": measurement_type,
+                "invalid_fields": list(values.keys()),
+                "reason": validation_error
+            }
+        )
+
+    # Crear medición en la base de datos
+    measurement_id = new_uuid()
+    taken_at = datetime.now(timezone.utc)
+
+    new_measurement = Measurement(
+        id=measurement_id,
+        residence_id=residence_id,
+        resident_id=resident_id,
+        recorded_by=current["id"],
+        source="voice",
+        device_id=None,
+        type=measurement_type,
+        systolic=values.get("systolic"),
+        diastolic=values.get("diastolic"),
+        pulse_bpm=values.get("pulse_bpm"),
+        spo2=values.get("spo2"),
+        weight_kg=values.get("weight_kg"),
+        temperature_c=values.get("temperature_c"),
+        taken_at=taken_at
+    )
+
+    db.add(new_measurement)
+    await db.commit()
+    await db.refresh(new_measurement)
+
+    # Generar mensaje de confirmación
+    confirmation_msg = service.generate_confirmation_message(
+        matched_resident_name,
+        measurement_type,
+        values
+    )
+
+    # Construir respuesta
+    measurement_data = VoiceMeasurementData(
+        id=measurement_id,
+        resident_id=resident_id,
+        resident_name=matched_resident_name,
+        measurement_type=measurement_type,
+        values=MeasurementValuesOut(**values),
+        source="voice",
+        recorded_at=taken_at,
+        recorded_by=current["id"]
+    )
+
+    return VoiceMeasurementResponse(
+        status="success",
+        message="Medición registrada correctamente",
+        measurement=measurement_data,
+        confirmation_message=confirmation_msg
+    )
+
+
+@router.post("/voice/confirm", response_model=VoiceMeasurementResponse)
+async def confirm_voice_measurement(
+    payload: VoiceMeasurementConfirm,
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+):
+    """
+    Confirma y registra una medición después de resolver ambigüedad.
+    Se usa cuando el usuario selecciona manualmente el residente correcto.
+    """
+    from app.services.voice_measurement_service import VoiceMeasurementService
+    from app.schemas import VoiceMeasurementResponse, VoiceMeasurementData, MeasurementValuesOut
+    from datetime import datetime, timezone
+
+    # Validar residencia
+    residence_id = await apply_residence_context_or_infer(db, current, payload.residence_id)
+
+    # Verificar que el residente existe y pertenece a la residencia
+    resident_query = select(Resident).where(
+        Resident.id == payload.resident_id,
+        Resident.residence_id == residence_id,
+        Resident.deleted_at.is_(None)
+    )
+    result = await db.execute(resident_query)
+    resident = result.scalar_one_or_none()
+
+    if not resident:
+        return VoiceMeasurementResponse(
+            status="error",
+            message="El residente no existe o no pertenece a esta residencia",
+            error_code="RESIDENT_NOT_FOUND"
+        )
+
+    # Validar valores de la medición
+    service = VoiceMeasurementService()
+    is_valid, validation_error = service.validate_measurement_values(
+        payload.measurement_type,
+        payload.values
+    )
+
+    if not is_valid:
+        return VoiceMeasurementResponse(
+            status="error",
+            message=validation_error,
+            error_code="INVALID_VALUES",
+            details={
+                "measurement_type": payload.measurement_type,
+                "invalid_fields": list(payload.values.keys()),
+                "reason": validation_error
+            }
+        )
+
+    # Crear medición en la base de datos
+    measurement_id = new_uuid()
+    taken_at = datetime.now(timezone.utc)
+
+    new_measurement = Measurement(
+        id=measurement_id,
+        residence_id=residence_id,
+        resident_id=payload.resident_id,
+        recorded_by=current["id"],
+        source="voice",
+        device_id=None,
+        type=payload.measurement_type,
+        systolic=payload.values.get("systolic"),
+        diastolic=payload.values.get("diastolic"),
+        pulse_bpm=payload.values.get("pulse_bpm"),
+        spo2=payload.values.get("spo2"),
+        weight_kg=payload.values.get("weight_kg"),
+        temperature_c=payload.values.get("temperature_c"),
+        taken_at=taken_at
+    )
+
+    db.add(new_measurement)
+    await db.commit()
+    await db.refresh(new_measurement)
+
+    # Generar mensaje de confirmación
+    confirmation_msg = service.generate_confirmation_message(
+        resident.full_name,
+        payload.measurement_type,
+        payload.values
+    )
+
+    # Construir respuesta
+    measurement_data = VoiceMeasurementData(
+        id=measurement_id,
+        resident_id=payload.resident_id,
+        resident_name=resident.full_name,
+        measurement_type=payload.measurement_type,
+        values=MeasurementValuesOut(**payload.values),
+        source="voice",
+        recorded_at=taken_at,
+        recorded_by=current["id"]
+    )
+
+    return VoiceMeasurementResponse(
+        status="success",
+        message="Medición registrada correctamente",
+        measurement=measurement_data,
+        confirmation_message=confirmation_msg
+    )
 
 

@@ -28,10 +28,18 @@ from .location import FloorCreate, FloorUpdate, FloorOut, RoomCreate, RoomUpdate
 from .resident import ResidentCreate, ResidentUpdate, ResidentChangeBed, ResidentOut
 from .device import DeviceCreate, DeviceUpdate, DeviceOut
 from .task import TaskCategoryCreate, TaskCategoryUpdate, TaskCategoryOut, TaskTemplateCreate, TaskTemplateUpdate, TaskTemplateOut, TaskApplicationCreate, TaskApplicationUpdate, TaskApplicationOut, TaskApplicationBatchRequest, TaskApplicationBatchResponse, TaskApplicationDailySummary, TaskApplicationDetail, TaskApplicationResidentDay, UserAssigner, VoiceParseRequest, VoiceParseResponse, VoiceApplicationRequest, VoiceApplicationResponse, ResidentOption, TaskOption, StatusOption
-from .measurement import MeasurementCreate, MeasurementUpdate, MeasurementOut, MeasurementDailySummary
+from .measurement import (
+    MeasurementCreate, MeasurementUpdate, MeasurementOut, MeasurementDailySummary,
+    VoiceMeasurementTranscript, VoiceMeasurementResponse, VoiceMeasurementConfirm,
+    VoiceMeasurementData, MeasurementValuesOut, MeasurementTypeOption
+)
 from .tag import TagCreate, TagUpdate, TagOut, ResidentTagAssign
 from .dashboard import DashboardMetric, MonthlyData, YearComparison, ResidentStats, MeasurementStats, TaskStats, TaskCategoryWithCount, MonthlyResidentData, NewResidentStats, DeviceStats, DashboardData
 from .pagination import PaginationParams, PaginatedResponse, FilterParams
+from .chronology import (
+    ChronologyEvent, MeasurementEvent, TaskEvent, BedChangeEvent, StatusChangeEvent,
+    ResidentChronologyResponse, ChronologyFilters
+)
 
 
 class UserResidenceAssignment(BaseModel):
@@ -131,6 +139,12 @@ __all__ = [
     "MeasurementUpdate",
     "MeasurementOut",
     "MeasurementDailySummary",
+    "VoiceMeasurementTranscript",
+    "VoiceMeasurementResponse",
+    "VoiceMeasurementConfirm",
+    "VoiceMeasurementData",
+    "MeasurementValuesOut",
+    "MeasurementTypeOption",
 
     # Etiquetas
     "TagCreate",
@@ -155,6 +169,15 @@ __all__ = [
     "PaginationParams",
     "PaginatedResponse",
     "FilterParams",
+
+    # Cronología
+    "ChronologyEvent",
+    "MeasurementEvent",
+    "TaskEvent",
+    "BedChangeEvent",
+    "StatusChangeEvent",
+    "ResidentChronologyResponse",
+    "ChronologyFilters",
 
     # Usuarios
     "UserCreate",
