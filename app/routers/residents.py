@@ -310,10 +310,7 @@ async def list_residents(
             base_query, db, current["id"], current["role"], residence_id_param
         )
 
-        logger.error(f"Base query before pagination: {base_query}")
-
         result = await paginate_query_residents(base_query, db, pagination, filters, floor_id, room_id, bed_id, residence_id_param)
-        logger.error(f"Result items count: {len(result.items) if hasattr(result, 'items') else 0}")
         return result
     except Exception as e:
         logger.error(f"Error in list_residents: {str(e)}")
