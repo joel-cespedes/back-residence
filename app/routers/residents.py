@@ -5,14 +5,18 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from sqlalchemy import select, func, and_, or_, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, aliased
 
 from app.deps import get_db, get_current_user
-from app.models import Resident, Bed, Residence, User, UserResidence, Room, Floor
+from app.models import (
+    Resident, Bed, Residence, User, UserResidence, Room, Floor, Device,
+    Measurement, TaskApplication, ResidentHistory, TaskTemplate, TaskCategory
+)
 from app.schemas import (
     ResidentCreate, ResidentUpdate, ResidentOut, ResidentChangeBed,
     PaginationParams, PaginatedResponse, FilterParams,
-    ResidentChronologyResponse
+    ResidentChronologyResponse, MeasurementEvent, TaskEvent,
+    BedChangeEvent, StatusChangeEvent
 )
 from app.security import new_uuid
 from app.services.permission_service import PermissionService
@@ -30,6 +34,67 @@ async def get_resident_or_404(resident_id: str, db: AsyncSession) -> Resident:
     if not resident:
         raise HTTPException(status_code=404, detail="Resident not found")
     return resident
+
+async def apply_residence_context_or_infer(
+    db: AsyncSession,
+    current: dict,
+    residence_id: str | None,
+    resident_id: str | None = None,
+    device_id: str | None = None,
+) -> str:
+    """
+    Devuelve residence_id efectivo:
+      - usa el header si viene (validando pertenencia),
+      - si no, intenta inferirlo por resident_id o device_id,
+      - si no se puede y no es superadmin -> 428.
+    Fija app.residence_id en la sesión para RLS/consultas posteriores.
+    """
+    rid = residence_id
+
+    # Inferir por residente
+    if not rid and resident_id:
+        rid = await db.scalar(
+            select(Resident.residence_id).where(
+                Resident.id == resident_id,
+                Resident.deleted_at.is_(None)
+            )
+        )
+        if not rid:
+            raise HTTPException(status_code=400, detail="Resident not found")
+
+    # Inferir por dispositivo
+    if not rid and device_id:
+        rid = await db.scalar(
+            select(Device.residence_id).where(
+                Device.id == device_id,
+                Device.deleted_at.is_(None)
+            )
+        )
+        if not rid:
+            raise HTTPException(status_code=400, detail="Device not found")
+
+    if not rid and current["role"] != "superadmin":
+        raise HTTPException(
+            status_code=status.HTTP_428_PRECONDITION_REQUIRED,
+            detail="Select a residence (send residence_id or include resident_id/device_id to infer)"
+        )
+
+    # Validar pertenencia (salvo superadmin)
+    if rid and current["role"] != "superadmin":
+        ok = await db.execute(
+            select(UserResidence).where(
+                UserResidence.user_id == current["id"],
+                UserResidence.residence_id == rid,
+            )
+        )
+        if ok.scalar_one_or_none() is None:
+            raise HTTPException(status_code=403, detail="Residence not allowed for this user")
+
+    # Fijar contexto
+    if rid:
+        await db.execute(text("SELECT set_config('app.residence_id', :rid, true)"), {"rid": rid})
+
+    return rid
 
 async def paginate_query_residents(
     query,
@@ -525,7 +590,7 @@ async def get_resident_chronology(
     include_status_changes: bool = Query(True, description="Incluir cambios de estado"),
     date_from: Optional[datetime] = Query(None, description="Fecha desde"),
     date_to: Optional[datetime] = Query(None, description="Fecha hasta"),
-    limit: int = Query(100, ge=1, le=500, description="Límite de eventos"),
+    limit: int = Query(10, ge=1, le=100, description="Límite de eventos"),
     db: AsyncSession = Depends(get_db),
     current = Depends(get_current_user),
     residence_id: str | None = Query(None, description="Filter by residence ID")
@@ -534,15 +599,6 @@ async def get_resident_chronology(
     Obtiene la cronología completa de un residente: mediciones, tareas y cambios de cama/estado.
     Los eventos se retornan ordenados por fecha descendente (más recientes primero).
     """
-    from app.schemas.chronology import (
-        ResidentChronologyResponse, MeasurementEvent, TaskEvent,
-        BedChangeEvent, StatusChangeEvent
-    )
-    from app.models import (
-        Resident, Measurement, TaskApplication, ResidentHistory,
-        User, Device, TaskTemplate, Room, Bed
-    )
-
     # Verificar que el residente existe
     resident_query = select(Resident).where(Resident.id == id, Resident.deleted_at.is_(None))
     result = await db.execute(resident_query)
@@ -613,52 +669,56 @@ async def get_resident_chronology(
         task_query = select(
             TaskApplication,
             TaskTemplate.name.label("task_name"),
-            TaskTemplate.category_name.label("task_category"),
-            User.name.label("assigned_by_name")
+            TaskCategory.name.label("task_category"),
+            User.name.label("applied_by_name")
         ).join(
-            TaskTemplate, TaskApplication.template_id == TaskTemplate.id
+            TaskTemplate, TaskApplication.task_template_id == TaskTemplate.id
         ).join(
-            User, TaskApplication.assigned_by == User.id, isouter=True
+            TaskCategory, TaskTemplate.task_category_id == TaskCategory.id
+        ).join(
+            User, TaskApplication.applied_by == User.id, isouter=True
         ).where(
             TaskApplication.resident_id == id,
             TaskApplication.deleted_at.is_(None)
         )
 
         if date_from:
-            task_query = task_query.where(TaskApplication.assigned_at >= date_from)
+            task_query = task_query.where(TaskApplication.applied_at >= date_from)
         if date_to:
-            task_query = task_query.where(TaskApplication.assigned_at <= date_to)
+            task_query = task_query.where(TaskApplication.applied_at <= date_to)
 
         task_result = await db.execute(task_query)
 
-        for task_app, task_name, task_category, assigned_by_name in task_result.all():
+        for task_app, task_name, task_category, applied_by_name in task_result.all():
             events.append(TaskEvent(
                 task_application_id=task_app.id,
-                timestamp=task_app.assigned_at,
+                timestamp=task_app.applied_at,
                 task_name=task_name,
                 task_category=task_category or "Sin categoría",
-                status=task_app.current_status,
-                assigned_by=task_app.assigned_by,
-                assigned_by_name=assigned_by_name,
-                recorded_by=task_app.assigned_by,
-                recorded_by_name=assigned_by_name
+                status=task_app.selected_status_text,
+                assigned_by=task_app.applied_by,
+                assigned_by_name=applied_by_name,
+                recorded_by=task_app.applied_by,
+                recorded_by_name=applied_by_name
             ))
 
     # 3. CAMBIOS DE CAMA Y ESTADO
     if include_bed_changes or include_status_changes:
+        # Crear alias para las tablas Room y Bed (previo y nuevo)
+        PrevRoom = aliased(Room)
+        PrevBed = aliased(Bed)
+
         history_query = select(
             ResidentHistory,
             User.name.label("changed_by_name"),
-            Room.name.label("prev_room_name"),
-            Room.name.label("new_room_name"),
-            Bed.number.label("prev_bed_number"),
-            Bed.number.label("new_bed_number")
+            PrevRoom.name.label("prev_room_name"),
+            PrevBed.name.label("prev_bed_name")
         ).join(
             User, ResidentHistory.changed_by == User.id, isouter=True
         ).join(
-            Room, ResidentHistory.previous_room_id == Room.id, isouter=True
+            PrevRoom, ResidentHistory.previous_room_id == PrevRoom.id, isouter=True
         ).join(
-            Bed, ResidentHistory.previous_bed_id == Bed.id, isouter=True
+            PrevBed, ResidentHistory.previous_bed_id == PrevBed.id, isouter=True
         ).where(
             ResidentHistory.resident_id == id
         )
@@ -670,7 +730,7 @@ async def get_resident_chronology(
 
         history_result = await db.execute(history_query)
 
-        for history, changed_by_name, prev_room_name, new_room_name, prev_bed_number, new_bed_number in history_result.all():
+        for history, changed_by_name, prev_room_name, prev_bed_name in history_result.all():
             # Cambios de cama
             if include_bed_changes and history.change_type in ['bed_assignment', 'bed_removal', 'residence_transfer']:
                 # Obtener nombres de habitación y cama nuevos
@@ -680,10 +740,10 @@ async def get_resident_chronology(
                     room_result = await db.execute(select(Room.name).where(Room.id == history.room_id))
                     new_room = room_result.scalar()
                 if history.bed_id:
-                    bed_result = await db.execute(select(Bed.number).where(Bed.id == history.bed_id))
+                    bed_result = await db.execute(select(Bed.name).where(Bed.id == history.bed_id))
                     new_bed = bed_result.scalar()
 
-                prev_location = f"{prev_room_name}, Cama {prev_bed_number}" if prev_room_name and prev_bed_number else None
+                prev_location = f"{prev_room_name}, Cama {prev_bed_name}" if prev_room_name and prev_bed_name else None
                 new_location = f"{new_room}, Cama {new_bed}" if new_room and new_bed else None
 
                 events.append(BedChangeEvent(
