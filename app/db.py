@@ -20,7 +20,11 @@ if not database_url.startswith(('postgresql+asyncpg://', 'postgresql+psycopg://'
 engine = create_async_engine(
     database_url,
     future=True,
-    pool_pre_ping=True,
+    pool_size=10,              # Conexiones activas en el pool
+    max_overflow=20,           # Conexiones extras en picos de tráfico
+    pool_pre_ping=True,        # Verifica conexión antes de usar
+    pool_recycle=3600,         # Recicla conexiones cada 1 hora
+    echo=False,                # No loguear queries SQL (ya tienes logging estructurado)
 )
 
 # Session factory

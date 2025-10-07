@@ -17,6 +17,9 @@ async def login(
     data: LoginRequest,
     session: AsyncSession = Depends(get_session_anon),
 ):
+    """
+    Login endpoint con rate limiting de 5 intentos por minuto para prevenir brute force.
+    """
     # NO transaction context here: the SET CONFIG in dependency already started one
     q = await session.execute(
         select(User).where(User.alias_hash == hash_alias(data.alias))
