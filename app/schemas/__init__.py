@@ -8,9 +8,9 @@ Cada esquema está separado en su propio archivo por entidad para mantener una o
 """
 
 from datetime import datetime
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_serializer
 
 # Importar enumeraciones comunes
 from .enums import (
@@ -57,13 +57,20 @@ class UserOut(BaseModel):
     alias: str
     role: UserRole
     residences: List[UserResidenceAssignment]
-    created_at: datetime
+    created_at: Union[datetime, str, None] = None
 
     # Propiedades adicionales para sistema administrativo
     name: Optional[str] = None
     residence_names: Optional[List[str]] = None
     created_by: Optional[Dict[str, Any]] = None
     updated_at: Optional[str] = None
+
+    @field_serializer('created_at', 'updated_at')
+    def serialize_datetime(self, value: Union[datetime, str, None]) -> Optional[str]:
+        """Serializa datetime a string ISO, o devuelve el string directamente"""
+        if isinstance(value, datetime):
+            return value.isoformat()
+        return value
 
 
 class UserCreate(BaseModel):

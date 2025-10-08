@@ -381,7 +381,7 @@ async def create_user(
         alias=alias_input,
         role=user.role,
         residences=[UserResidenceAssignment(id=a.residence_id) for a in assignments],
-        created_at=user.created_at,
+        created_at=user.created_at,  # El serializador lo convierte automáticamente
     )
 
 @router.put("/{user_id}", response_model=dict)
