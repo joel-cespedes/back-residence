@@ -255,15 +255,17 @@ async def create_resident(
 
         logger.error(f"Creating resident with data: {data.model_dump()}")
 
-        # Create resident data excluding residence_id from model_dump to avoid duplicate argument
+        # Create resident data excluding duplicates from model_dump
         resident_data = data.model_dump()
-        resident_data.pop('residence_id', None)  # Remove residence_id to avoid duplicate
+        resident_data.pop('residence_id', None)
+        resident_data.pop('room_id', None)    # Remove to avoid duplicate with calculated value
+        resident_data.pop('floor_id', None)   # Remove to avoid duplicate with calculated value
 
         resident = Resident(
             id=new_uuid(),
             residence_id=data.residence_id,
-            room_id=room_id,    # Asignar room_id
-            floor_id=floor_id,  # Asignar floor_id
+            room_id=room_id,    # Use calculated room_id from bed
+            floor_id=floor_id,  # Use calculated floor_id from bed
             **resident_data
         )
 

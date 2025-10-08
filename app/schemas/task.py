@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Optional, Dict, Any, List
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # =========================================================
 # ESQUEMAS DE CATEGORÍAS DE TAREAS
@@ -58,6 +58,13 @@ class TaskCategoryOut(BaseModel):
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
     deleted_at: Optional[str] = None
+
+    @field_validator('created_at', 'updated_at', 'deleted_at', mode='before')
+    @classmethod
+    def convert_datetime_to_str(cls, value):
+        if isinstance(value, datetime):
+            return value.isoformat()
+        return value
 
 
 # =========================================================
@@ -156,6 +163,13 @@ class TaskTemplateOut(BaseModel):
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
     deleted_at: Optional[str] = None
+
+    @field_validator('created_at', 'updated_at', 'deleted_at', mode='before')
+    @classmethod
+    def convert_datetime_to_str(cls, value):
+        if isinstance(value, datetime):
+            return value.isoformat()
+        return value
 
 
 # =========================================================

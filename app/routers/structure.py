@@ -254,7 +254,10 @@ async def list_floors(
     print(f"DEBUG: list_floors called with residence_id={final_residence_id}")
 
     # Always use joins for consistency and to include residence_name
-    query = select(Floor, Residence.name.label("residence_name")).join(Residence, Floor.residence_id == Residence.id)
+    query = select(Floor, Residence.name.label("residence_name")).join(
+        Residence,
+        and_(Floor.residence_id == Residence.id, Residence.deleted_at.is_(None))
+    )
 
     # Apply residence filter based on user role
     if current["role"] == "superadmin":
@@ -305,7 +308,7 @@ async def floors_simple(residence_id: str, db: AsyncSession = Depends(get_db)):
     """Get simple list of floors for a residence (legacy endpoint)"""
     r = await db.execute(
         select(Floor, Residence.name.label("residence_name"))
-        .join(Residence, Floor.residence_id == Residence.id)
+        .join(Residence, and_(Floor.residence_id == Residence.id, Residence.deleted_at.is_(None)))
         .where(Floor.residence_id == residence_id, Floor.deleted_at.is_(None))
     )
     return [
@@ -542,9 +545,9 @@ async def list_rooms(
         Floor.name.label('floor_name'),
         Residence.name.label('residence_name')
     ).join(
-        Floor, Room.floor_id == Floor.id, isouter=True
+        Floor, and_(Room.floor_id == Floor.id, Floor.deleted_at.is_(None)), isouter=True
     ).join(
-        Residence, Room.residence_id == Residence.id, isouter=True
+        Residence, and_(Room.residence_id == Residence.id, Residence.deleted_at.is_(None)), isouter=True
     ).where(
         Room.deleted_at.is_(None)
     )
@@ -613,8 +616,8 @@ async def rooms_simple(floor_id: str, db: AsyncSession = Depends(get_db)):
     # Then get rooms for that floor
     r = await db.execute(
         select(Room, Floor.name.label("floor_name"), Residence.name.label("residence_name"))
-        .join(Floor, Room.floor_id == Floor.id)
-        .join(Residence, Floor.residence_id == Residence.id)
+        .join(Floor, and_(Room.floor_id == Floor.id, Floor.deleted_at.is_(None)))
+        .join(Residence, and_(Floor.residence_id == Residence.id, Residence.deleted_at.is_(None)))
         .where(Room.floor_id == floor_id, Room.deleted_at.is_(None))
     )
     return [
@@ -793,10 +796,10 @@ async def list_beds(
         Floor.name.label("floor_name"),
         Residence.name.label("residence_name"),
         Resident.full_name.label("resident_name")
-    ).join(Room, Bed.room_id == Room.id, isouter=True)\
-     .join(Floor, Room.floor_id == Floor.id, isouter=True)\
-     .join(Residence, Floor.residence_id == Residence.id, isouter=True)\
-     .join(Resident, Bed.id == Resident.bed_id, isouter=True)\
+    ).join(Room, and_(Bed.room_id == Room.id, Room.deleted_at.is_(None)), isouter=True)\
+     .join(Floor, and_(Room.floor_id == Floor.id, Floor.deleted_at.is_(None)), isouter=True)\
+     .join(Residence, and_(Bed.residence_id == Residence.id, Residence.deleted_at.is_(None)), isouter=True)\
+     .join(Resident, and_(Bed.id == Resident.bed_id, Resident.deleted_at.is_(None)), isouter=True)\
      .where(Bed.deleted_at.is_(None))
 
     # Apply filters based on user role and provided parameters
@@ -836,8 +839,8 @@ async def list_beds(
         search_term = f"%{filters.search}%"
         base_query = base_query.where(Bed.name.ilike(search_term))
 
-    # Get total count
-    count_query = select(func.count()).select_from(base_query.subquery())
+    # Get total count - use distinct to avoid duplicates from joins
+    count_query = select(func.count(func.distinct(Bed.id))).select_from(base_query.subquery())
     total = await db.scalar(count_query)
 
     # Apply pagination
@@ -848,7 +851,7 @@ async def list_beds(
         base_query = base_query.order_by(sort_field)
 
     offset = (pagination.page - 1) * pagination.size
-    base_query = base_query.offset(offset).limit(pagination.size)
+    base_query = base_query.distinct().offset(offset).limit(pagination.size)
 
     # Execute query
     result = await db.execute(base_query)
@@ -889,9 +892,9 @@ async def beds_simple(room_id: str, db: AsyncSession = Depends(get_db)):
     """Get simple list of beds for a room (legacy endpoint)"""
     r = await db.execute(
         select(Bed, Room.name.label("room_name"), Floor.name.label("floor_name"), Residence.name.label("residence_name"), Residence.id.label("residence_id"))
-        .join(Room, Bed.room_id == Room.id)
-        .join(Floor, Room.floor_id == Floor.id)
-        .join(Residence, Floor.residence_id == Residence.id)
+        .join(Room, and_(Bed.room_id == Room.id, Room.deleted_at.is_(None)))
+        .join(Floor, and_(Room.floor_id == Floor.id, Floor.deleted_at.is_(None)))
+        .join(Residence, and_(Floor.residence_id == Residence.id, Residence.deleted_at.is_(None)))
         .where(Bed.room_id == room_id, Bed.deleted_at.is_(None))
     )
     return [

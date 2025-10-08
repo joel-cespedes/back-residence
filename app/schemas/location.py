@@ -4,8 +4,9 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 # =========================================================
 # ESQUEMAS DE PISOS
@@ -16,9 +17,11 @@ class FloorCreate(BaseModel):
     Esquema para la creación de un nuevo piso.
 
     Attributes:
-        name (str): Nombre del piso (obligatorio)
+        name (str): Nombre del piso
+        residence_id (str): ID de la residencia a la que pertenece
     """
     name: str
+    residence_id: str
 
 
 class FloorUpdate(BaseModel):
@@ -54,6 +57,13 @@ class FloorOut(BaseModel):
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
+    @field_validator('created_at', 'updated_at', mode='before')
+    @classmethod
+    def convert_datetime_to_str(cls, value):
+        if isinstance(value, datetime):
+            return value.isoformat()
+        return value
+
 
 # =========================================================
 # ESQUEMAS DE HABITACIONES
@@ -64,11 +74,13 @@ class RoomCreate(BaseModel):
     Esquema para la creación de una nueva habitación.
 
     Attributes:
-        floor_id (str): ID del piso al que pertenece la habitación
         name (str): Nombre de la habitación
+        residence_id (str): ID de la residencia a la que pertenece
+        floor_id (str): ID del piso al que pertenece
     """
-    floor_id: str
     name: str
+    residence_id: str
+    floor_id: str
 
 
 class RoomUpdate(BaseModel):
@@ -77,9 +89,11 @@ class RoomUpdate(BaseModel):
 
     Attributes:
         name (Optional[str]): Nuevo nombre de la habitación
+        residence_id (Optional[str]): Nueva residencia a la que pertenece
         floor_id (Optional[str]): Nuevo piso de la habitación
     """
     name: Optional[str] = None
+    residence_id: Optional[str] = None
     floor_id: Optional[str] = None
 
 
@@ -108,6 +122,13 @@ class RoomOut(BaseModel):
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
+    @field_validator('created_at', 'updated_at', mode='before')
+    @classmethod
+    def convert_datetime_to_str(cls, value):
+        if isinstance(value, datetime):
+            return value.isoformat()
+        return value
+
 
 # =========================================================
 # ESQUEMAS DE CAMAS
@@ -118,11 +139,15 @@ class BedCreate(BaseModel):
     Esquema para la creación de una nueva cama.
 
     Attributes:
-        room_id (str): ID de la habitación a la que pertenece la cama
         name (str): Nombre de la cama
+        residence_id (str): ID de la residencia a la que pertenece
+        floor_id (str): ID del piso al que pertenece
+        room_id (str): ID de la habitación a la que pertenece
     """
-    room_id: str
     name: str
+    residence_id: str
+    floor_id: str
+    room_id: str
 
 
 class BedUpdate(BaseModel):
@@ -169,3 +194,10 @@ class BedOut(BaseModel):
     resident_name: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
+
+    @field_validator('created_at', 'updated_at', mode='before')
+    @classmethod
+    def convert_datetime_to_str(cls, value):
+        if isinstance(value, datetime):
+            return value.isoformat()
+        return value

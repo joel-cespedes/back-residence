@@ -22,18 +22,22 @@ class ResidentCreate(BaseModel):
         full_name (str): Nombre completo del residente
         birth_date (date): Fecha de nacimiento del residente
         sex (Optional[str]): Sexo del residente
-        comments (Optional[str]): Comentarios adicionales sobre el residente
+        residence_id (str): ID de la residencia a la que pertenece
         status (ResidentStatus): Estado del residente (default: 'active')
-        residence_id (str): ID de la residencia a la que pertenece el residente
-        bed_id (Optional[str]): ID de la cama asignada (solo para residentes activos)
+        bed_id (Optional[str]): ID de la cama asignada
+        room_id (Optional[str]): ID de la habitación asignada
+        floor_id (Optional[str]): ID del piso asignado
+        comments (Optional[str]): Comentarios adicionales
     """
     full_name: str
     birth_date: date
     sex: Optional[str] = None
-    comments: Optional[str] = None
-    status: ResidentStatus = "active"
     residence_id: str
+    status: ResidentStatus = "active"
     bed_id: Optional[str] = None
+    room_id: Optional[str] = None
+    floor_id: Optional[str] = None
+    comments: Optional[str] = None
 
 
 class ResidentUpdate(BaseModel):
