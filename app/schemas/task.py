@@ -42,20 +42,22 @@ class TaskCategoryOut(BaseModel):
         id (str): Identificador único de la categoría
         residence_id (str): ID de la residencia a la que pertenece
         name (str): Nombre de la categoría
+        residence_name (Optional[str]): Nombre de la residencia
         created_by_info (Optional[Dict[str, Any]]): Información del usuario que creó la categoría
-        created_at (datetime): Fecha de creación del registro
-        updated_at (datetime): Fecha de última actualización
-        deleted_at (Optional[datetime]): Fecha de eliminación (soft delete)
+        created_at (Optional[str]): Fecha de creación del registro
+        updated_at (Optional[str]): Fecha de última actualización
+        deleted_at (Optional[str]): Fecha de eliminación (soft delete)
     """
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra='allow')
 
     id: str
     residence_id: str
     name: str
+    residence_name: Optional[str] = None
     created_by_info: Optional[Dict[str, Any]] = None
-    created_at: datetime
-    updated_at: datetime
-    deleted_at: Optional[datetime] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    deleted_at: Optional[str] = None
 
 
 # =========================================================
@@ -127,12 +129,14 @@ class TaskTemplateOut(BaseModel):
         status1-6 (Optional[str]): Textos para estados
         audio_phrase (Optional[str]): Frase de audio asociada
         is_block (Optional[bool]): Estado de bloqueo
+        category_name (Optional[str]): Nombre de la categoría
+        residence_name (Optional[str]): Nombre de la residencia
         created_by_info (Optional[Dict[str, Any]]): Información del usuario que creó la plantilla
-        created_at (datetime): Fecha de creación del registro
-        updated_at (datetime): Fecha de última actualización
-        deleted_at (Optional[datetime]): Fecha de eliminación (soft delete)
+        created_at (Optional[str]): Fecha de creación del registro
+        updated_at (Optional[str]): Fecha de última actualización
+        deleted_at (Optional[str]): Fecha de eliminación (soft delete)
     """
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra='allow')
 
     id: str
     residence_id: str
@@ -146,10 +150,12 @@ class TaskTemplateOut(BaseModel):
     status6: Optional[str] = None
     audio_phrase: Optional[str] = None
     is_block: Optional[bool] = None
+    category_name: Optional[str] = None
+    residence_name: Optional[str] = None
     created_by_info: Optional[Dict[str, Any]] = None
-    created_at: datetime
-    updated_at: datetime
-    deleted_at: Optional[datetime] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    deleted_at: Optional[str] = None
 
 
 # =========================================================

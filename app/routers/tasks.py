@@ -140,7 +140,12 @@ async def paginate_query_tasks(
         if hasattr(obj, '__table__'):
             # Es un modelo SQLAlchemy
             item = {column.name: getattr(obj, column.name) for column in obj.__table__.columns}
-            
+
+            # Serializar fechas a formato ISO
+            for field in ['created_at', 'updated_at', 'deleted_at']:
+                if field in item and item[field] is not None:
+                    item[field] = item[field].isoformat()
+
             # Agregar nombre de residencia si es TaskCategory
             if hasattr(obj, 'residence_id'):
                 residence_result = await db.execute(
@@ -148,7 +153,7 @@ async def paginate_query_tasks(
                 )
                 residence_name = residence_result.scalar()
                 item['residence_name'] = residence_name
-            
+
             # Agregar nombre de categoría si es TaskTemplate
             if hasattr(obj, 'task_category_id'):
                 category_result = await db.execute(
@@ -156,7 +161,7 @@ async def paginate_query_tasks(
                 )
                 category_name = category_result.scalar()
                 item['category_name'] = category_name
-            
+
             # Agregar información del creador si existe
             if hasattr(obj, 'created_by') and obj.created_by:
                 creator_result = await db.execute(
@@ -170,7 +175,7 @@ async def paginate_query_tasks(
                         "name": creator[0],
                         "alias": creator_alias
                     }
-            
+
             items.append(item)
         else:
             # Es otro tipo de objeto

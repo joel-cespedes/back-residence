@@ -208,10 +208,11 @@ async def list_users(
             "alias": alias_display,
             "name": user.name,
             "role": user.role,
-            "residences": residences,  # Ahora con nombres
+            "residences": residences,  # Array de objetos {id, name} - para app móvil
+            "residence_names": [r["name"] for r in residences],  # Array de strings - para admin
             "created_by": created_by_info,
-            "created_at": user.created_at,
-            "updated_at": user.updated_at
+            "created_at": user.created_at.isoformat() if user.created_at else None,
+            "updated_at": user.updated_at.isoformat() if user.updated_at else None
         })
     
     # Calculate pagination metadata
@@ -307,16 +308,17 @@ async def get_user(
     
     # Decrypt alias for display
     alias_display = decrypt_data(user.alias_encrypted) if user.alias_encrypted else "N/A"
-    
+
     return {
         "id": user.id,
         "alias": alias_display,
         "name": user.name,
         "role": user.role,
-        "residences": residences,
+        "residences": residences,  # Array de objetos {id, name} - para app móvil
+        "residence_names": [r["name"] for r in residences],  # Array de strings - para admin
         "created_by": created_by_info,
-        "created_at": user.created_at,
-        "updated_at": user.updated_at
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+        "updated_at": user.updated_at.isoformat() if user.updated_at else None
     }
 
 @router.post("/", response_model=UserOut, status_code=status.HTTP_201_CREATED)
@@ -509,16 +511,17 @@ async def update_user(
     
     # Decrypt alias for display
     alias_display = decrypt_data(user.alias_encrypted) if user.alias_encrypted else "N/A"
-    
+
     return {
         "id": user.id,
         "alias": alias_display,
         "name": user.name,
         "role": user.role,
-        "residences": residences,
+        "residences": residences,  # Array de objetos {id, name} - para app móvil
+        "residence_names": [r["name"] for r in residences],  # Array de strings - para admin
         "created_by": created_by_info,
-        "created_at": user.created_at,
-        "updated_at": user.updated_at
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+        "updated_at": user.updated_at.isoformat() if user.updated_at else None
     }
 
 @router.delete("/{user_id}", status_code=204)

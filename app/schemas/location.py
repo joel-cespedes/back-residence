@@ -41,12 +41,18 @@ class FloorOut(BaseModel):
         id (str): Identificador único del piso
         residence_id (str): ID de la residencia a la que pertenece
         name (str): Nombre del piso
+        residence_name (Optional[str]): Nombre de la residencia
+        created_at (Optional[str]): Fecha de creación
+        updated_at (Optional[str]): Fecha de actualización
     """
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra='allow')
 
     id: str
     residence_id: str
     name: str
+    residence_name: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
 
 # =========================================================
@@ -86,13 +92,21 @@ class RoomOut(BaseModel):
         residence_id (str): ID de la residencia a la que pertenece
         floor_id (str): ID del piso al que pertenece
         name (str): Nombre de la habitación
+        floor_name (Optional[str]): Nombre del piso
+        residence_name (Optional[str]): Nombre de la residencia
+        created_at (Optional[str]): Fecha de creación
+        updated_at (Optional[str]): Fecha de actualización
     """
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra='allow')
 
     id: str
     residence_id: str
     floor_id: str
     name: str
+    floor_name: Optional[str] = None
+    residence_name: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
 
 # =========================================================

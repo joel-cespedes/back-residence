@@ -182,8 +182,8 @@ async def paginate_floors_query(query, db: AsyncSession, pagination: PaginationP
             'residence_id': floor.residence_id,
             'name': floor.name,
             'residence_name': residence_name,
-            'created_at': floor.created_at,
-            'updated_at': floor.updated_at
+            'created_at': floor.created_at.isoformat() if floor.created_at else None,
+            'updated_at': floor.updated_at.isoformat() if floor.updated_at else None
         }
         items.append(item)
 
@@ -453,8 +453,8 @@ async def paginate_query_rooms(
             'name': row.name,
             'floor_name': row.floor_name or 'Desconocido',
             'residence_name': row.residence_name or 'Desconocida',
-            'created_at': row.created_at,
-            'updated_at': row.updated_at
+            'created_at': row.created_at.isoformat() if row.created_at else None,
+            'updated_at': row.updated_at.isoformat() if row.updated_at else None
         }
         items.append(item)
 

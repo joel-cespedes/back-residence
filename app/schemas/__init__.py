@@ -8,7 +8,7 @@ Cada esquema está separado en su propio archivo por entidad para mantener una o
 """
 
 from datetime import datetime
-from typing import List
+from typing import List, Optional, Dict, Any
 
 from pydantic import BaseModel, Field, ConfigDict
 
@@ -51,13 +51,19 @@ class UserResidenceAssignment(BaseModel):
 class UserOut(BaseModel):
     """Respuesta estándar para operaciones de usuarios."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra='allow')
 
     id: str
     alias: str
     role: UserRole
     residences: List[UserResidenceAssignment]
     created_at: datetime
+
+    # Propiedades adicionales para sistema administrativo
+    name: Optional[str] = None
+    residence_names: Optional[List[str]] = None
+    created_by: Optional[Dict[str, Any]] = None
+    updated_at: Optional[str] = None
 
 
 class UserCreate(BaseModel):
